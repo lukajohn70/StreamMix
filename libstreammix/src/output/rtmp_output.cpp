@@ -39,7 +39,7 @@ bool RTMPOutput::start(const OutputSettings& settings) {
     if (m_impl->running.load()) return false;
 
     m_settings = settings;
-    m_state = OutputState::Starting;
+    m_state = OutputState::Streaming;
     m_impl->running.store(true);
     m_impl->startTime = std::chrono::steady_clock::now();
     m_impl->lastBitrateCheck = m_impl->startTime;

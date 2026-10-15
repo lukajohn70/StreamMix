@@ -24,6 +24,9 @@ set(LIBSTREAMMIX_SOURCES
     src/replay/instant_replay.cpp
     src/plugin/plugin_registry.cpp
     src/core/preset_manager.cpp
+    src/compositor/chroma_key.cpp
+    src/compositor/virtual_set.cpp
+    src/output/stream_manager.cpp
 )
 
 add_library(streammix SHARED ${LIBSTREAMMIX_SOURCES})

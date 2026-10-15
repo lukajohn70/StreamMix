@@ -23,6 +23,9 @@
 #include "streammix/instant_replay.h"
 #include "streammix/plugin.h"
 #include "streammix/preset_manager.h"
+#include "streammix/chroma_key.h"
+#include "streammix/virtual_set.h"
+#include "streammix/stream_manager.h"
 #include "streammix/version.h"
 
 
