@@ -11,12 +11,15 @@ set(LIBSTREAMMIX_SOURCES
     src/capture/ffmpeg_source.cpp
     src/capture/zoom_source.cpp
     src/capture/omt_source.cpp
+    src/capture/ndi_source.cpp
     src/capture/title_source.cpp
     src/compositor/compositor.cpp
     src/audio/audio_mixer.cpp
+    src/audio/audio_dsp.cpp
     src/output/rtmp_output.cpp
     src/output/web_server.cpp
     src/output/virtual_cam.cpp
+    src/output/ndi_output.cpp
     src/scene/scene.cpp
     src/scene/scene_manager.cpp
     src/control/control_surface.cpp
@@ -26,7 +29,9 @@ set(LIBSTREAMMIX_SOURCES
     src/core/preset_manager.cpp
     src/compositor/chroma_key.cpp
     src/compositor/virtual_set.cpp
+    src/compositor/shader_pipeline.cpp
     src/output/stream_manager.cpp
+    src/output/multicorder.cpp
 )
 
 add_library(streammix SHARED ${LIBSTREAMMIX_SOURCES})

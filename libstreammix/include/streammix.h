@@ -12,6 +12,7 @@
 #include "streammix/scene.h"
 #include "streammix/output.h"
 #include "streammix/audio_mixer.h"
+#include "streammix/audio_dsp.h"
 #include "streammix/zoom_source.h"
 #include "streammix/web_server.h"
 #include "streammix/omt_source.h"
@@ -25,7 +26,11 @@
 #include "streammix/preset_manager.h"
 #include "streammix/chroma_key.h"
 #include "streammix/virtual_set.h"
+#include "streammix/shader_pipeline.h"
 #include "streammix/stream_manager.h"
+#include "streammix/multicorder.h"
+#include "streammix/ndi_source.h"
+#include "streammix/ndi_output.h"
 #include "streammix/version.h"
 
 

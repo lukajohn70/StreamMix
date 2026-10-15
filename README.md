@@ -140,7 +140,34 @@ flowchart TD
 ### 9. Project Preset Persistence (`.stmix`)
 * Save and restore entire production configurations (inputs, video URLs, audio bus routing, overlay bindings, and PTZ camera addresses) to `.stmix` (JSON) or `.vmix` (XML) files.
 
+### 10. vMix MultiCorder (ISO Multi-Camera Recording)
+* **Concurrent ISO Recording**: Record up to 8 camera feeds simultaneously into isolated video files (MP4, ProRes, MKV, RAW).
+* **Frame-Accurate Timecode Sync**: Synchronized PTS timecode alignment across all camera tracks independent of master Program recording.
+* **Non-Blocking Write Engine**: Thread-safe circular disk queue with telemetry (MB/s write rate, frame drops, buffer health).
+
+### 11. Pro Audio DSP & Dynamics Rack
+* **4-Band Parametric Equalizer**: Biquad Direct Form II Transposed filters (High-Pass, Low Shelf, Peaking 1 & 2, High Shelf) with adjustable Q and gain ($\pm 24\text{ dB}$).
+* **Studio Noise Gate**: Threshold ($-80$ to $-10\text{ dBFS}$), adjustable attack, hold, and release ballistics.
+* **Soft-Knee Compressor**: Dynamic threshold, 1:1 to 30:1 ratio, smooth knee width, auto makeup gain, and real-time Gain Reduction (GR) metering.
+* **Brickwall Peak Limiter**: Fast lookahead anti-clipping protection (ceiling down to $-0.1\text{ dBFS}$).
+
+### 12. GPU Shader Pipeline & 3D LUT Engine
+* **Broadcast Color Grading**: Lift (Shadows), Gamma (Midtones), Gain (Highlights), Saturation, Contrast, Brightness, and Hue shifting.
+* **3D LUT Engine (.cube format)**: Full support for DaVinci Resolve and Adobe 3D LUT files with trilinear 3D interpolation.
+* **Cross-Platform Shaders**: Generates GLSL 330 fragment shaders (OpenGL) and native Apple Metal MSL kernels for zero-copy 4K compositing.
+
+### 13. NDI® 6 & NDI|HX3 Integration
+* **NDI 6 Ingest & Transmitter**: Low-latency IP video ingest and network broadcast transmitter with mDNS sender discovery.
+* **NDI|HX3 Support**: High-efficiency H.264/HEVC ultra-low latency streaming for remote PTZ cameras and mobile encoders.
+* **Bi-Directional Tally**: Real-time Program (Red) and Preview (Green) tally metadata synchronization with external TriCasters and switchers.
+
 ---
+
+## 🖥️ Live macOS Preview Server
+A native macOS preview build is running live in the background:
+* **Live Switcher & Telestrator**: `http://localhost:8088`
+* **vMix 29 REST API**: `http://localhost:8088/api?Function=Cut`
+* **vMix XML Status Polling**: `http://localhost:8088/api/status`
 
 ## 📱 Web Controller & Telestrator (Port 8088)
 

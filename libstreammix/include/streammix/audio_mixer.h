@@ -95,6 +95,9 @@ public:
     bool  isAFV(uint64_t sourceId) const;
     uint32_t getBusRouting(uint64_t sourceId) const;
 
+    // ─── Pro Audio DSP Rack (EQ, Gate, Compressor, Limiter) ──────
+    std::shared_ptr<class AudioDSPRack> getChannelDSP(uint64_t sourceId);
+
     // ─── Bus Master Faders ───────────────────────────────────────
     void setBusMasterGain(AudioBus bus, float gain);
     float getBusMasterGain(AudioBus bus) const;
@@ -137,6 +140,7 @@ private:
         std::deque<float> sampleQueue; ///< Interleaved float buffer
         float afvMultiplier = 1.0f;     ///< Fades between 0.0 and 1.0
         AudioMeterData meters;
+        std::shared_ptr<class AudioDSPRack> dsp;
     };
 
     void applySoftLimiter(std::vector<float>& samples);

@@ -7,6 +7,7 @@
  */
 
 #include "streammix/audio_mixer.h"
+#include "streammix/audio_dsp.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -65,6 +66,23 @@ bool AudioMixer::hasChannel(uint64_t sourceId) const {
     return m_channelsMap.find(sourceId) != m_channelsMap.end();
 }
 
+std::shared_ptr<AudioDSPRack> AudioMixer::getChannelDSP(uint64_t sourceId) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_channelsMap.find(sourceId);
+    if (it == m_channelsMap.end()) {
+        InternalChannel ch;
+        ch.config.sourceId = sourceId;
+        ch.config.name = "Input " + std::to_string(sourceId);
+        ch.dsp = std::make_shared<AudioDSPRack>(static_cast<float>(m_sampleRate));
+        auto inserted = m_channelsMap.emplace(sourceId, std::move(ch));
+        return inserted.first->second.dsp;
+    }
+    if (!it->second.dsp) {
+        it->second.dsp = std::make_shared<AudioDSPRack>(static_cast<float>(m_sampleRate));
+    }
+    return it->second.dsp;
+}
+
 // ─── Input Audio Ingestion ───────────────────────────────────────
 void AudioMixer::pushAudio(uint64_t sourceId, AudioFramePtr frame) {
     if (!frame || frame->samples.empty()) return;
@@ -77,6 +95,11 @@ void AudioMixer::pushAudio(uint64_t sourceId, AudioFramePtr frame) {
         ch.config.sourceId = sourceId;
         ch.config.name = "Input " + std::to_string(sourceId);
         it = m_channelsMap.emplace(sourceId, std::move(ch)).first;
+    }
+
+    // Process channel through Pro Audio DSP rack if enabled
+    if (it->second.dsp) {
+        it->second.dsp->process(frame);
     }
 
     auto& queue = it->second.sampleQueue;
