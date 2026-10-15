@@ -1,0 +1,44 @@
+# Build outputs & artifacts
+build/
+build-*/
+dist/
+bin/
+lib/
+*.dSYM/
+*.o
+*.obj
+*.dylib
+*.so
+*.so.*
+*.a
+*.lib
+*.dll
+*.exe
+*.app/
+*.dmg
+*.msi
+*.AppImage
+
+# CMake artifacts
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+*.cmake
+!/cmake/*.cmake
+CMakeUserPresets.json
+
+# IDE & OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+*.log
+/tmp/*
+*.stmix
+*.vmix
+
+# Tests binaries
+test_*_runner
