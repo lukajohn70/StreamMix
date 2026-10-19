@@ -74,10 +74,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup MSVC & WiX
+      - name: Setup WiX Toolset
+        shell: pwsh
         run: |
-          dotnet tool install --global wix
-          wix extension add -g WixToolset.UI.wixext
+          if (Test-Path "C:\Program Files (x86)\WiX Toolset v3.11\bin") {
+            echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
+          } else {
+            choco install wixtoolset -y
+          }
 
       - name: Install Qt6
         uses: jurplel/install-qt-action@v3
@@ -106,15 +110,15 @@ jobs:
       - name: Build StreamMix
         run: cmake --build build --config Release --parallel
 
-      - name: Package Windows MSI
+      - name: Package Windows Deliverables
         shell: pwsh
         run: .\scripts\package_windows.ps1 -BuildType Release -Arch x64
 
       - name: Upload Windows Deliverable
         uses: actions/upload-artifact@v4
         with:
-          name: StreamMix-Windows-MSI
-          path: dist\windows\*.msi
+          name: StreamMix-Windows-x64
+          path: dist/windows/*
 
   # ─── Linux Build & Packaging (.AppImage) ──────────────────────
   build-linux:
@@ -129,7 +133,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake ninja-build pkg-config \
-            qt6-base-dev qt6-multimedia-dev libgl1-mesa-dev \
+            qt6-base-dev qt6-base-dev-tools libqt6opengl6-dev libqt6openglwidgets6-dev libgl-dev libglu1-mesa-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
             libswresample-dev libavdevice-dev portaudio19-dev libsrt-openssl-dev \
             fuse libfuse2
@@ -153,10 +157,17 @@ jobs:
             libstreammix/src/capture/title_source.cpp \
             libstreammix/src/compositor/compositor.cpp \
             libstreammix/src/audio/audio_mixer.cpp \
+            libstreammix/src/audio/audio_dsp.cpp \
             libstreammix/src/control/control_surface.cpp \
             libstreammix/src/control/ptz_controller.cpp \
             libstreammix/src/replay/instant_replay.cpp \
+            libstreammix/src/output/record_output.cpp \
+            libstreammix/src/output/stream_manager.cpp \
+            libstreammix/src/output/rtmp_output.cpp \
+            libstreammix/src/output/multicorder.cpp \
+            libstreammix/src/output/virtual_cam.cpp \
             tests/test_master_suite.cpp \
+            -lavcodec -lavformat -lavutil -lswscale -lswresample \
             -o test_master_runner && ./test_master_runner
 
       - name: Package Linux AppImage

@@ -68,28 +68,26 @@ if ($env:FFMPEG_DIR -and (Test-Path "$env:FFMPEG_DIR\bin")) {
     Copy-Item -Path "C:\ffmpeg\bin\*.dll" -Destination $BinDir -Force
 }
 
-# ── 3. WiX MSI packaging via CPack ──────────────────────────────────────────
+# ── 3. Packaging (MSI + Portable ZIP) ──────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 
-Write-Host "📦  Building MSI with CPack + WiX..." -ForegroundColor Yellow
-Push-Location $BuildDir
+$BinDir = Split-Path -Parent $ExePath
+$ZipOut = Join-Path $DistDir "${AppName}-${Version}-${Arch}.zip"
+Write-Host "📦  Creating Portable ZIP bundle..." -ForegroundColor Yellow
+Compress-Archive -Path "$BinDir\*" -DestinationPath $ZipOut -Force
+Write-Host "✅  ZIP bundle ready: $ZipOut" -ForegroundColor Green
+
+Write-Host "📦  Attempting MSI build with CPack..." -ForegroundColor Yellow
+try {
+    Push-Location $BuildDir
     cpack -C $BuildType -G WIX --verbose
-Pop-Location
-
-$MsiFiles = Get-ChildItem -Path $BuildDir -Filter "*.msi" -Recurse
-foreach ($msi in $MsiFiles) {
-    $Dest = Join-Path $DistDir "${AppName}-${Version}-${Arch}.msi"
-    Copy-Item -Path $msi.FullName -Destination $Dest -Force
-    Write-Host ""
-    Write-Host "✅  Package ready:" -ForegroundColor Green
-    Write-Host "    $Dest"          -ForegroundColor Green
-}
-
-if (-not $MsiFiles) {
-    # Fallback: ZIP deployment bundle
-    Write-Host "⚠️   No MSI produced — creating ZIP bundle instead" -ForegroundColor Yellow
-    $ZipOut = Join-Path $DistDir "${AppName}-${Version}-${Arch}.zip"
-    $BinDir = Split-Path -Parent $ExePath
-    Compress-Archive -Path "$BinDir\*" -DestinationPath $ZipOut -Force
-    Write-Host "✅  ZIP bundle: $ZipOut" -ForegroundColor Green
+    Pop-Location
+    $MsiFiles = Get-ChildItem -Path $BuildDir -Filter "*.msi" -Recurse
+    foreach ($msi in $MsiFiles) {
+        $Dest = Join-Path $DistDir "${AppName}-${Version}-${Arch}.msi"
+        Copy-Item -Path $msi.FullName -Destination $Dest -Force
+        Write-Host "✅  MSI ready: $Dest" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "⚠️  WiX MSI generation skipped: $($_.Exception.Message)" -ForegroundColor Yellow
 }
