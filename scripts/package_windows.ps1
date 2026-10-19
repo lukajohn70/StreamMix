@@ -54,7 +54,16 @@ if (-not $ExePath) {
 }
 
 Write-Host "🔧  Running windeployqt..." -ForegroundColor Yellow
-windeployqt --release --no-translations --no-system-d3d-compiler `
+$WinDeploy = "windeployqt"
+if (-not (Get-Command windeployqt -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\Qt\6.6.3\msvc2019_64\bin\windeployqt.exe") {
+        $WinDeploy = "C:\Qt\6.6.3\msvc2019_64\bin\windeployqt.exe"
+    } elseif ($env:Qt6_DIR) {
+        $candidate = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $env:Qt6_DIR))) "bin\windeployqt.exe"
+        if (Test-Path $candidate) { $WinDeploy = $candidate }
+    }
+}
+& $WinDeploy --release --no-translations --no-system-d3d-compiler `
     --no-opengl-sw --compiler-runtime "$ExePath"
 
 # Bundle FFmpeg DLLs if present
