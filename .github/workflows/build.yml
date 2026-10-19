@@ -196,7 +196,7 @@ jobs:
         with:
           files: |
             StreamMix-macOS-DMG/*
-            StreamMix-Windows-MSI/*
+            StreamMix-Windows-x64/*
             StreamMix-Linux-AppImage/*
           generate_release_notes: true
           draft: false

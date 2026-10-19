@@ -1,23 +1,31 @@
 # =============================================================================
-# scripts/package_windows.ps1  — StreamMix Windows .msi packager
+# scripts/package_windows.ps1  — StreamMix Windows .msi / .zip packager
 # =============================================================================
 # Requirements:
 #   • Qt6 installed (set Qt6_DIR or use Qt Online Installer)
 #   • CMake 3.27+
 #   • Visual Studio 2022 (MSVC) or MinGW
-#   • WiX Toolset v4+ in PATH  (OR  windeployqt + Inno Setup as fallback)
+#   • WiX Toolset v3/v4 in PATH (for MSI installer)
 # Usage:
-#   .\scripts\package_windows.ps1 [-BuildType Release] [-Arch x64]
+#   .\scripts\package_windows.ps1 [-BuildType Release] [-Arch x64] [-BuildDir <dir>]
 # =============================================================================
 param(
     [string]$BuildType = "Release",
-    [string]$Arch = "x64"
+    [string]$Arch = "x64",
+    [string]$BuildDir = ""
 )
 $ErrorActionPreference = "Stop"
 
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir    = Split-Path -Parent $ScriptDir
-$BuildDir   = Join-Path $RootDir "build-windows-$Arch"
+
+if (-not $BuildDir) {
+    if (Test-Path (Join-Path $RootDir "build")) {
+        $BuildDir = Join-Path $RootDir "build"
+    } else {
+        $BuildDir = Join-Path $RootDir "build-windows-$Arch"
+    }
+}
 $DistDir    = Join-Path $RootDir "dist\windows"
 
 $AppName    = "StreamMix"
@@ -31,28 +39,50 @@ if (Test-Path $VersionFile) {
 Write-Host "══════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "  StreamMix Windows Packager v$Version"   -ForegroundColor Cyan
 Write-Host "  Build: $BuildType | Arch: $Arch"         -ForegroundColor Cyan
+Write-Host "  BuildDir: $BuildDir"                     -ForegroundColor Cyan
 Write-Host "══════════════════════════════════════════" -ForegroundColor Cyan
 
-# ── 1. CMake configure + build ───────────────────────────────────────────────
-New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
+# ── 1. CMake configure + build (if StreamMix.exe not already built) ─────────
+$ExePath = Get-ChildItem -Path $BuildDir -Filter "StreamMix.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
 
-$Generator = if ($Arch -eq "x64") { "Visual Studio 17 2022" } else { "MinGW Makefiles" }
-$ArchArg   = if ($Arch -eq "x64") { @("-A", "x64") } else { @() }
+if (-not $ExePath) {
+    Write-Host "⚙️  Configuring and building StreamMix ($BuildType)..." -ForegroundColor Yellow
+    New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
 
-cmake -S $RootDir -B $BuildDir `
-    -G $Generator @ArchArg `
-    -DCMAKE_BUILD_TYPE=$BuildType `
-    -DCPACK_GENERATOR="WIX"
+    $Generator = if ($Arch -eq "x64") { "Visual Studio 17 2022" } else { "MinGW Makefiles" }
+    $ArchArg   = if ($Arch -eq "x64") { @("-A", "x64") } else { @() }
+    $PrefixArg = @()
+    if ($env:Qt6_DIR -or $env:FFMPEG_DIR) {
+        $PrefixArg = @("-DCMAKE_PREFIX_PATH=$($env:Qt6_DIR);$($env:FFMPEG_DIR)")
+    }
 
-cmake --build $BuildDir --config $BuildType --parallel
+    cmake -S $RootDir -B $BuildDir `
+        -G $Generator @ArchArg `
+        -DCMAKE_BUILD_TYPE=$BuildType `
+        @PrefixArg `
+        -DCPACK_GENERATOR="WIX"
 
-# ── 2. windeployqt — bundle Qt DLLs ─────────────────────────────────────────
-$ExePath = Get-ChildItem -Path $BuildDir -Filter "StreamMix.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+    cmake --build $BuildDir --config $BuildType --parallel
+
+    $ExePath = Get-ChildItem -Path $BuildDir -Filter "StreamMix.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+}
+
 if (-not $ExePath) {
     Write-Error "❌  StreamMix.exe not found in $BuildDir"
     exit 1
 }
 
+$BinDir = Split-Path -Parent $ExePath
+Write-Host "🎯  Found binary directory: $BinDir" -ForegroundColor Green
+
+# Ensure streammix.dll is copied alongside StreamMix.exe
+$DllCandidate = Get-ChildItem -Path $BuildDir -Filter "streammix.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+if ($DllCandidate -and -not (Test-Path (Join-Path $BinDir "streammix.dll"))) {
+    Write-Host "📦  Copying streammix.dll to $BinDir..." -ForegroundColor Yellow
+    Copy-Item -Path $DllCandidate -Destination $BinDir -Force
+}
+
+# ── 2. windeployqt — bundle Qt DLLs & plugins ───────────────────────────────
 Write-Host "🔧  Running windeployqt..." -ForegroundColor Yellow
 $WinDeploy = "windeployqt"
 if (-not (Get-Command windeployqt -ErrorAction SilentlyContinue)) {
@@ -69,18 +99,15 @@ if (-not (Get-Command windeployqt -ErrorAction SilentlyContinue)) {
 # Bundle FFmpeg DLLs if present
 if ($env:FFMPEG_DIR -and (Test-Path "$env:FFMPEG_DIR\bin")) {
     Write-Host "📦  Bundling FFmpeg DLLs from $env:FFMPEG_DIR\bin..." -ForegroundColor Yellow
-    $BinDir = Split-Path -Parent $ExePath
     Copy-Item -Path "$env:FFMPEG_DIR\bin\*.dll" -Destination $BinDir -Force
 } elseif (Test-Path "C:\ffmpeg\bin") {
     Write-Host "📦  Bundling FFmpeg DLLs from C:\ffmpeg\bin..." -ForegroundColor Yellow
-    $BinDir = Split-Path -Parent $ExePath
     Copy-Item -Path "C:\ffmpeg\bin\*.dll" -Destination $BinDir -Force
 }
 
-# ── 3. Packaging (MSI + Portable ZIP) ──────────────────────────────────────────
+# ── 3. Packaging (Portable ZIP + MSI) ─────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 
-$BinDir = Split-Path -Parent $ExePath
 $ZipOut = Join-Path $DistDir "${AppName}-${Version}-${Arch}.zip"
 Write-Host "📦  Creating Portable ZIP bundle..." -ForegroundColor Yellow
 Compress-Archive -Path "$BinDir\*" -DestinationPath $ZipOut -Force
@@ -89,7 +116,7 @@ Write-Host "✅  ZIP bundle ready: $ZipOut" -ForegroundColor Green
 Write-Host "📦  Attempting MSI build with CPack..." -ForegroundColor Yellow
 try {
     Push-Location $BuildDir
-    cpack -C $BuildType -G WIX --verbose
+    cpack -C $BuildType -G WIX
     Pop-Location
     $MsiFiles = Get-ChildItem -Path $BuildDir -Filter "*.msi" -Recurse
     foreach ($msi in $MsiFiles) {

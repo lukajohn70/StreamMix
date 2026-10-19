@@ -41,7 +41,7 @@ if(APPLE)
 endif()
 
 # ─── Find packages ──────────────────────────────────────────────
-find_package(Qt6 6.5 REQUIRED COMPONENTS
+find_package(Qt6 REQUIRED COMPONENTS
     Core
     Gui
     Widgets
@@ -111,6 +111,7 @@ find_package(OpenGL REQUIRED)
 # ─── Compiler flags ─────────────────────────────────────────────
 if(MSVC)
     add_compile_options(/W4 /WX- /MP)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")

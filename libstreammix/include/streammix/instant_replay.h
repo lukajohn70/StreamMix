@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include <array>
+#include <algorithm>
 #include <unordered_map>
 #include <memory>
 #include <mutex>
