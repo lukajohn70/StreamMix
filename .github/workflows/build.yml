@@ -19,7 +19,8 @@ jobs:
 
       - name: Install dependencies via Homebrew
         run: |
-          brew update
+          export HOMEBREW_NO_AUTO_UPDATE=1
+          export HOMEBREW_NO_INSTALL_CLEANUP=1
           brew install qt@6 ffmpeg portaudio srt create-dmg ninja cmake pkg-config
           echo "$(brew --prefix qt@6)/bin" >> $GITHUB_PATH
 
