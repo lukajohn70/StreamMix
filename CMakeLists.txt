@@ -10,6 +10,7 @@ project(StreamMix
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 # ─── Build type default ─────────────────────────────────────────
 if(NOT CMAKE_BUILD_TYPE)
@@ -24,20 +25,18 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # ─── macOS specifics ────────────────────────────────────────────
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "13.0" CACHE STRING "macOS deployment target")
-    # Homebrew prefix (Intel: /usr/local, Apple Silicon: /opt/homebrew)
     execute_process(
         COMMAND brew --prefix
         OUTPUT_VARIABLE HOMEBREW_PREFIX
         OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
     )
     list(APPEND CMAKE_PREFIX_PATH
+        "/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-qt6-2026-07-15-universal"
+        "/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-2026-07-15-universal"
         "${HOMEBREW_PREFIX}/opt/qt"
         "${HOMEBREW_PREFIX}/opt/ffmpeg@7"
-        "${HOMEBREW_PREFIX}/opt/portaudio"
         "${HOMEBREW_PREFIX}/opt/libsrt"
-    )
-    set(ENV{PKG_CONFIG_PATH}
-        "${HOMEBREW_PREFIX}/opt/ffmpeg@7/lib/pkgconfig:${HOMEBREW_PREFIX}/opt/portaudio/lib/pkgconfig:${HOMEBREW_PREFIX}/opt/libsrt/lib/pkgconfig"
     )
 endif()
 
@@ -49,22 +48,63 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
     OpenGL
     OpenGLWidgets
     Network
-    WebSockets
-    Multimedia
 )
 qt_standard_project_setup()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
-    libavcodec
-    libavformat
-    libavutil
-    libswscale
-    libswresample
-    libavdevice
-)
-pkg_check_modules(PORTAUDIO REQUIRED IMPORTED_TARGET portaudio-2.0)
-pkg_check_modules(SRT IMPORTED_TARGET srt)  # optional — no REQUIRED
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(FFMPEG IMPORTED_TARGET
+        libavcodec
+        libavformat
+        libavutil
+        libswscale
+        libswresample
+        libavdevice
+    )
+    pkg_check_modules(SRT IMPORTED_TARGET srt)
+endif()
+
+# Fallback: if pkg-config did not find FFmpeg, link from local universal deps
+if(NOT TARGET PkgConfig::FFMPEG)
+    set(OBS_DEPS_DIR "/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-2026-07-15-universal")
+    if(EXISTS "${OBS_DEPS_DIR}/include/libavcodec/avcodec.h")
+        add_library(PkgConfig::FFMPEG INTERFACE IMPORTED GLOBAL)
+        target_include_directories(PkgConfig::FFMPEG INTERFACE "${OBS_DEPS_DIR}/include")
+        target_link_libraries(PkgConfig::FFMPEG INTERFACE
+            "${OBS_DEPS_DIR}/lib/libavdevice.dylib"
+            "${OBS_DEPS_DIR}/lib/libavformat.dylib"
+            "${OBS_DEPS_DIR}/lib/libavcodec.dylib"
+            "${OBS_DEPS_DIR}/lib/libavfilter.dylib"
+            "${OBS_DEPS_DIR}/lib/libswscale.dylib"
+            "${OBS_DEPS_DIR}/lib/libswresample.dylib"
+            "${OBS_DEPS_DIR}/lib/libavutil.dylib"
+        )
+        set(FFMPEG_FOUND TRUE)
+        message(STATUS "Found FFmpeg in ${OBS_DEPS_DIR}")
+    endif()
+endif()
+
+if(WIN32 AND NOT TARGET PkgConfig::FFMPEG)
+    set(FFMPEG_WIN_SEARCH_PATHS
+        "$ENV{FFMPEG_DIR}"
+        "C:/ffmpeg"
+        "C:/vcpkg/installed/x64-windows"
+        "$ENV{VCPKG_ROOT}/installed/x64-windows"
+    )
+    foreach(SEARCH_PATH ${FFMPEG_WIN_SEARCH_PATHS})
+        if(EXISTS "${SEARCH_PATH}/include/libavcodec/avcodec.h")
+            add_library(PkgConfig::FFMPEG INTERFACE IMPORTED GLOBAL)
+            target_include_directories(PkgConfig::FFMPEG INTERFACE "${SEARCH_PATH}/include")
+            target_link_directories(PkgConfig::FFMPEG INTERFACE "${SEARCH_PATH}/lib")
+            target_link_libraries(PkgConfig::FFMPEG INTERFACE
+                avcodec avformat avutil swscale swresample avdevice
+            )
+            set(FFMPEG_FOUND TRUE)
+            message(STATUS "Found Windows FFmpeg in ${SEARCH_PATH}")
+            break()
+        endif()
+    endforeach()
+endif()
 
 find_package(OpenGL REQUIRED)
 
@@ -74,7 +114,11 @@ if(MSVC)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-O3 -march=native)
+        if(APPLE)
+            add_compile_options(-O3)
+        else()
+            add_compile_options(-O3 -march=native)
+        endif()
     endif()
 endif()
 

@@ -21,22 +21,28 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
 set(STREAMMIX_APP_SOURCES
     src/main.cpp
     src/main_window.cpp
+    src/audio_player.cpp
     src/widgets/monitor_widget.cpp
     src/widgets/transition_widget.cpp
     src/widgets/input_card_widget.cpp
     src/widgets/audio_mixer_widget.cpp
     src/widgets/ptz_panel.cpp
     src/widgets/replay_panel.cpp
+    src/dialogs/settings_dialog.cpp
+    src/dialogs/input_settings_dialog.cpp
 )
 
 set(STREAMMIX_APP_HEADERS
     src/main_window.h
+    src/audio_player.h
     src/widgets/monitor_widget.h
     src/widgets/transition_widget.h
     src/widgets/input_card_widget.h
     src/widgets/audio_mixer_widget.h
     src/widgets/ptz_panel.h
     src/widgets/replay_panel.h
+    src/dialogs/settings_dialog.h
+    src/dialogs/input_settings_dialog.h
 )
 
 add_executable(streammix-app
@@ -48,6 +54,7 @@ target_include_directories(streammix-app
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/widgets
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
         ${CMAKE_SOURCE_DIR}/libstreammix/include
 )
 
@@ -61,6 +68,10 @@ target_link_libraries(streammix-app
         Qt6::OpenGLWidgets
         Qt6::Network
 )
+
+if(APPLE)
+    target_link_libraries(streammix-app PRIVATE "-framework AudioToolbox")
+endif()
 
 set_target_properties(streammix-app PROPERTIES
     OUTPUT_NAME "StreamMix"

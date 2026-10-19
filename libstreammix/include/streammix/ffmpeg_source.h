@@ -36,6 +36,16 @@ public:
     bool start(const SourceSettings& settings) override;
     void stop()  override;
 
+    // ── Transport & Playback ─────────────────────────────────
+    void   pause() override;
+    void   resume() override;
+    bool   isPaused() const override { return m_paused.load(); }
+    void   seek(double seconds) override;
+    double durationSeconds() const override { return m_durationSec.load(); }
+    double positionSeconds() const override { return m_positionSec.load(); }
+    void   setLoop(bool loop) override { m_loop = loop; }
+    bool   isLooping() const override { return m_loop; }
+
 private:
     bool openInput(const SourceSettings& settings);
     bool openVideoDecoder();
@@ -60,6 +70,11 @@ private:
 
     std::thread      m_decode_thread;
     std::atomic<bool> m_running { false };
+    std::atomic<bool> m_paused  { false };
+    std::atomic<double> m_durationSec { 0.0 };
+    std::atomic<double> m_positionSec { 0.0 };
+    std::atomic<bool> m_seekRequested { false };
+    std::atomic<double> m_seekTargetSec { 0.0 };
 };
 
 } // namespace sm

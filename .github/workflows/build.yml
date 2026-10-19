@@ -42,10 +42,19 @@ jobs:
             libstreammix/src/capture/title_source.cpp \
             libstreammix/src/compositor/compositor.cpp \
             libstreammix/src/audio/audio_mixer.cpp \
+            libstreammix/src/audio/audio_dsp.cpp \
             libstreammix/src/control/control_surface.cpp \
             libstreammix/src/control/ptz_controller.cpp \
             libstreammix/src/replay/instant_replay.cpp \
+            libstreammix/src/output/record_output.cpp \
+            libstreammix/src/output/stream_manager.cpp \
+            libstreammix/src/output/rtmp_output.cpp \
+            libstreammix/src/output/multicorder.cpp \
+            libstreammix/src/output/virtual_cam.cpp \
             tests/test_master_suite.cpp \
+            -L"$(brew --prefix ffmpeg)/lib" \
+            -Wl,-rpath,"$(brew --prefix ffmpeg)/lib" \
+            -lavcodec -lavformat -lavutil -lswscale -lswresample \
             -o test_master_runner && ./test_master_runner
 
       - name: Package macOS DMG
@@ -78,10 +87,20 @@ jobs:
           target: 'desktop'
           arch: 'win64_msvc2022_64'
 
+      - name: Install FFmpeg Shared (Windows x64)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip" -OutFile "$env:RUNNER_TEMP\ffmpeg.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP\ffmpeg.zip" -DestinationPath "$env:RUNNER_TEMP\ffmpeg_dir"
+          $ffmpegRoot = (Get-ChildItem -Path "$env:RUNNER_TEMP\ffmpeg_dir" -Directory | Select-Object -First 1).FullName
+          echo "FFMPEG_DIR=$ffmpegRoot" >> $env:GITHUB_ENV
+          echo "$ffmpegRoot\bin" >> $env:GITHUB_PATH
+
       - name: Configure CMake
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR;$env:FFMPEG_DIR" `
             -DCPACK_GENERATOR="WIX"
 
       - name: Build StreamMix

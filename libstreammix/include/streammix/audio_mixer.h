@@ -116,6 +116,7 @@ public:
     // ─── Real-Time Metering ──────────────────────────────────────
     AudioMeterData getChannelMeters(uint64_t sourceId) const;
     AudioMeterData getMasterMeters() const;
+    AudioMeterData getBusMeters(AudioBus bus) const;
 
     // ─── Mix Output Rendering ────────────────────────────────────
     /// Mixes and returns the main Master audio feed (for live stream & recording)
@@ -157,6 +158,7 @@ private:
     bool m_anySoloActive = false;
 
     AudioMeterData m_masterMeters;
+    std::unordered_map<uint32_t, AudioMeterData> m_busMeters;
     AudioCallback m_masterCb;
 };
 

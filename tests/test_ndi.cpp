@@ -85,8 +85,10 @@ int main() {
     assert(!ndiSource->isProgramTally());
     assert(ndiSource->isPreviewTally());
 
-    // Allow worker loop to ingest a few frames
-    std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    // Allow worker loop to ingest a few frames (wait up to 500ms)
+    for (int i = 0; i < 50 && (receivedVideoFrames.load() == 0 || receivedAudioFrames.load() == 0); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
     assert(receivedVideoFrames.load() > 0);
     assert(receivedAudioFrames.load() > 0);

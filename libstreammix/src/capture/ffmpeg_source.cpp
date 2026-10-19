@@ -24,6 +24,7 @@ extern "C" {
 #include <thread>
 #include <cstring>
 #include <iostream>
+#include <filesystem>
 
 namespace sm {
 
@@ -79,6 +80,20 @@ void FFmpegSource::stop() {
     m_state = SourceState::Stopped;
 }
 
+// ─── Transport & Playback ────────────────────────────────────────
+void FFmpegSource::pause() {
+    m_paused.store(true);
+}
+
+void FFmpegSource::resume() {
+    m_paused.store(false);
+}
+
+void FFmpegSource::seek(double seconds) {
+    m_seekTargetSec.store(std::max(0.0, seconds));
+    m_seekRequested.store(true);
+}
+
 // ─── openInput() ─────────────────────────────────────────────────
 bool FFmpegSource::openInput(const SourceSettings& settings) {
     AVDictionary* opts = nullptr;
@@ -93,10 +108,21 @@ bool FFmpegSource::openInput(const SourceSettings& settings) {
 #endif
 
     // Detect if this is a local device path vs a URL/file
-    bool is_device = (settings.url.find("://") == std::string::npos
-                   && settings.url.find('/') == 0)
-                  || settings.url == "default"
-                  || settings.url.find(':') != std::string::npos;
+    bool is_file = false;
+    try {
+        is_file = std::filesystem::exists(settings.url);
+    } catch (...) {}
+
+    bool is_url = (settings.url.find("://") != std::string::npos);
+
+    bool is_device = !is_file && !is_url && (
+        settings.url == "default" ||
+        settings.url == "0" ||
+        settings.url == "1" ||
+        settings.url.find("Camera") != std::string::npos ||
+        settings.url.find("screen") != std::string::npos ||
+        (settings.url.find(':') != std::string::npos && !is_file)
+    );
 
     const AVInputFormat* ifmt = nullptr;
     if (is_device) {
@@ -129,6 +155,10 @@ bool FFmpegSource::openInput(const SourceSettings& settings) {
     // Find best video and audio streams
     m_video_stream_idx = av_find_best_stream(m_fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
     m_audio_stream_idx = av_find_best_stream(m_fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
+
+    if (m_fmt_ctx && m_fmt_ctx->duration > 0) {
+        m_durationSec.store(static_cast<double>(m_fmt_ctx->duration) / AV_TIME_BASE);
+    }
 
     // Determine source type from URL scheme
     const std::string& url = settings.url;
@@ -210,10 +240,31 @@ bool FFmpegSource::openAudioDecoder() {
 
 // ─── decodeLoop() ────────────────────────────────────────────────
 void FFmpegSource::decodeLoop() {
+    const auto target_interval = std::chrono::microseconds(
+        m_fps > 0.0 ? static_cast<int64_t>(1000000.0 / m_fps) : 33333
+    );
+    auto next_frame_time = std::chrono::steady_clock::now();
     AVPacket* pkt   = av_packet_alloc();
     AVFrame*  frame = av_frame_alloc();
 
     while (m_running.load()) {
+        // Handle Seek Request
+        if (m_seekRequested.exchange(false)) {
+            double target = m_seekTargetSec.load();
+            int64_t targetTs = static_cast<int64_t>(target * AV_TIME_BASE);
+            av_seek_frame(m_fmt_ctx, -1, targetTs, AVSEEK_FLAG_BACKWARD);
+            if (m_vid_ctx) avcodec_flush_buffers(m_vid_ctx);
+            if (m_aud_ctx) avcodec_flush_buffers(m_aud_ctx);
+            m_positionSec.store(target);
+            next_frame_time = std::chrono::steady_clock::now();
+        }
+
+        // Handle Paused state
+        if (m_paused.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+
         int ret = av_read_frame(m_fmt_ctx, pkt);
 
         if (ret == AVERROR_EOF) {
@@ -222,9 +273,15 @@ void FFmpegSource::decodeLoop() {
                 av_seek_frame(m_fmt_ctx, -1, 0, AVSEEK_FLAG_BACKWARD);
                 if (m_vid_ctx) avcodec_flush_buffers(m_vid_ctx);
                 if (m_aud_ctx) avcodec_flush_buffers(m_aud_ctx);
+                m_positionSec.store(0.0);
+                next_frame_time = std::chrono::steady_clock::now();
+                continue;
+            } else {
+                // Not looping: stay on final frame
+                m_paused.store(true);
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 continue;
             }
-            break;  // End of stream — stop
         }
 
         if (ret < 0) {
@@ -236,8 +293,18 @@ void FFmpegSource::decodeLoop() {
         if (pkt->stream_index == m_video_stream_idx && m_vid_ctx) {
             if (avcodec_send_packet(m_vid_ctx, pkt) == 0) {
                 while (avcodec_receive_frame(m_vid_ctx, frame) == 0) {
+                    if (m_video_stream_idx >= 0 && m_fmt_ctx->streams[m_video_stream_idx]) {
+                        auto tb = m_fmt_ctx->streams[m_video_stream_idx]->time_base;
+                        if (frame->pts != AV_NOPTS_VALUE) {
+                            m_positionSec.store(static_cast<double>(frame->pts) * av_q2d(tb));
+                        }
+                    }
                     if (auto vf = convertVideoFrame(frame)) {
                         pushVideo(std::move(vf));
+                        if (m_type == SourceType::File) {
+                            next_frame_time += target_interval;
+                            std::this_thread::sleep_until(next_frame_time);
+                        }
                     }
                     av_frame_unref(frame);
                 }

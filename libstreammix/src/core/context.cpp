@@ -6,6 +6,11 @@
  */
 
 #include "streammix/context.h"
+#include "streammix/record_output.h"
+#include "streammix/virtual_cam.h"
+#include "streammix/multicorder.h"
+#include "streammix/stream_manager.h"
+#include <ctime>
 
 namespace sm {
 
@@ -19,13 +24,34 @@ Context::Context(ContextConfig config)
     m_compositor = std::make_unique<Compositor>(compConfig);
 
     m_audioMixer = std::make_unique<AudioMixer>(config.audioSampleRate, config.audioChannels);
+
+    m_recordOutput = std::make_unique<RecordOutput>("Master Recorder");
+    m_virtualCamOutput = std::make_unique<VirtualCamOutput>("StreamMix Virtual Camera");
+    m_multiCorder = std::make_unique<MultiCorder>();
+    m_streamManager = std::make_unique<MultiStreamManager>();
 }
+
+Context::~Context() = default;
 
 bool Context::initialize() {
     return true;
 }
 
+void Context::setMasterResolution(int width, int height) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_config.videoWidth = width;
+    m_config.videoHeight = height;
+    if (m_compositor) {
+        m_compositor->setResolution(width, height);
+    }
+}
+
 void Context::shutdown() {
+    stopRecording();
+    stopExternal();
+    stopStreaming();
+    stopMultiCorder();
+
     std::lock_guard<std::mutex> lock(m_mutex);
     for (auto& pair : m_sources) {
         if (pair.second) {
@@ -36,6 +62,14 @@ void Context::shutdown() {
 }
 
 void Context::tick(double deltaSeconds) {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto& pair : m_sources) {
+            if (pair.second && pair.second->isRunning()) {
+                pair.second->tick(deltaSeconds);
+            }
+        }
+    }
     if (m_compositor) {
         m_compositor->tick(deltaSeconds);
     }
@@ -194,6 +228,94 @@ void Context::setOverlaySource(int channelIndex, uint64_t sourceId) {
     if (m_compositor) {
         m_compositor->setOverlaySource(channelIndex, sourceId);
     }
+}
+
+bool Context::startRecording(const std::string& path, int bitrateKbps) {
+    if (m_recording.load()) return true;
+    std::string finalPath = path;
+    if (finalPath.empty()) {
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+        char buf[128];
+        std::strftime(buf, sizeof(buf), "/Users/john/Movies/StreamMix/StreamMix_Rec_%Y%m%d_%H%M%S.mp4", &tm);
+        finalPath = buf;
+    }
+    OutputSettings s;
+    s.url = finalPath;
+    s.width = m_config.videoWidth;
+    s.height = m_config.videoHeight;
+    s.fps = m_config.videoFps;
+    s.videoBitrateKbps = bitrateKbps;
+    if (m_recordOutput && m_recordOutput->start(s)) {
+        m_recording.store(true);
+        return true;
+    }
+    return false;
+}
+
+void Context::stopRecording() {
+    if (!m_recording.load()) return;
+    if (m_recordOutput) m_recordOutput->stop();
+    m_recording.store(false);
+}
+
+bool Context::isRecording() const {
+    return m_recording.load();
+}
+
+bool Context::startExternal() {
+    if (m_externalActive.load()) return true;
+    OutputSettings s;
+    s.width = m_config.videoWidth;
+    s.height = m_config.videoHeight;
+    s.fps = m_config.videoFps;
+    if (m_virtualCamOutput && m_virtualCamOutput->start(s)) {
+        m_externalActive.store(true);
+        return true;
+    }
+    return false;
+}
+
+void Context::stopExternal() {
+    if (!m_externalActive.load()) return;
+    if (m_virtualCamOutput) m_virtualCamOutput->stop();
+    m_externalActive.store(false);
+}
+
+bool Context::isExternalActive() const {
+    return m_externalActive.load();
+}
+
+bool Context::startStreaming() {
+    if (m_streaming.load()) return true;
+    if (m_streamManager && m_streamManager->startAll()) {
+        m_streaming.store(true);
+        return true;
+    }
+    return false;
+}
+
+void Context::stopStreaming() {
+    if (!m_streaming.load()) return;
+    if (m_streamManager) m_streamManager->stopAll();
+    m_streaming.store(false);
+}
+
+bool Context::isStreaming() const {
+    return m_streaming.load();
+}
+
+bool Context::startMultiCorder(const std::string& dir) {
+    std::string d = dir.empty() ? "/Users/john/Movies/StreamMix/MultiCorder" : dir;
+    return m_multiCorder ? m_multiCorder->startRecording(d) : false;
+}
+
+void Context::stopMultiCorder() {
+    if (m_multiCorder) m_multiCorder->stopRecording();
+}
+
+bool Context::isMultiCorderActive() const {
+    return m_multiCorder ? m_multiCorder->isRecording() : false;
 }
 
 AudioFramePtr Context::getMixMinusForCaller(uint64_t callerSourceId, int frameCount, int64_t pts_us) {

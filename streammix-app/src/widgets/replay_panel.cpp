@@ -8,7 +8,7 @@
 #include <QMessageBox>
 #include <cmath>
 
-namespace SM {
+namespace sm {
 
 // ─── construction ────────────────────────────────────────────────────────────
 
@@ -33,9 +33,9 @@ void ReplayPanel::tick(double dt)
     m_replay.tick(dt);
 }
 
-void ReplayPanel::ingestFrame(const FrameData& frame, int cameraChannel)
+void ReplayPanel::ingestFrame(VideoFramePtr frame, int cameraChannel)
 {
-    m_replay.ingestFrame(frame, cameraChannel);
+    m_replay.ingestFrame(cameraChannel, frame, 0);
 }
 
 // ─── build UI ────────────────────────────────────────────────────────────────
@@ -268,31 +268,31 @@ void ReplayPanel::onStepForward()
 
 void ReplayPanel::onMarkIn()
 {
-    m_replay.markIn(m_activePlayhead);
+    m_replay.setMarkIn(m_activeCamera);
 }
 
 void ReplayPanel::onMarkOut()
 {
-    m_replay.markOut(m_activePlayhead);
+    m_replay.setMarkOut(m_activeCamera);
 }
 
 void ReplayPanel::onCaptureLast10()
 {
-    auto clip = m_replay.captureLast(10.0);
-    if (!clip.name.empty()) {
+    auto clip = m_replay.extractLastSeconds(m_activeCamera, 10.0);
+    if (clip && !clip->name.empty()) {
         refreshClipList();
         flashSaved();
-        emit clipSaved(QString::fromStdString(clip.name));
+        emit clipSaved(QString::fromStdString(clip->name));
     }
 }
 
 void ReplayPanel::onCaptureLast30()
 {
-    auto clip = m_replay.captureLast(30.0);
-    if (!clip.name.empty()) {
+    auto clip = m_replay.extractLastSeconds(m_activeCamera, 30.0);
+    if (clip && !clip->name.empty()) {
         refreshClipList();
         flashSaved();
-        emit clipSaved(QString::fromStdString(clip.name));
+        emit clipSaved(QString::fromStdString(clip->name));
     }
 }
 
@@ -306,7 +306,7 @@ void ReplayPanel::onSpeedChanged(int value)
     m_speedLabel->setText(tr("%1%").arg(value));
     double factor = value / 100.0;
     // Update active playhead speed if already playing
-    m_replay.setPlaybackSpeed(m_activePlayhead, factor);
+    m_replay.setSpeed(m_activePlayhead, static_cast<float>(factor));
     emit speedChanged(factor);
 }
 
@@ -320,16 +320,18 @@ void ReplayPanel::onDeleteClip()
     auto* item = m_clipList->currentItem();
     if (!item) return;
     QString name = item->text();
-    m_replay.deleteClip(name.toStdString());
+    m_replay.removeClip(name.toStdString());
     delete m_clipList->takeItem(m_clipList->row(item));
 }
 
 void ReplayPanel::refreshClipList()
 {
     m_clipList->clear();
-    for (const auto& clip : m_replay.savedClips()) {
-        m_clipList->addItem(QString::fromStdString(clip.name));
+    for (const auto& clip : m_replay.clips()) {
+        if (clip) {
+            m_clipList->addItem(QString::fromStdString(clip->name));
+        }
     }
 }
 
-} // namespace SM
+} // namespace sm

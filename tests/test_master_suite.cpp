@@ -64,10 +64,10 @@ int main() {
     // ─── 1. Core Engine & Versioning ─────────────────────────────
     std::cout << "--- 1. Core Engine & Versioning ---\n";
     assert(sm::VERSION_MAJOR == 1);
-    assert(sm::VERSION_MINOR == 0);
+    assert(sm::VERSION_MINOR == 1);
     assert(sm::VERSION_PATCH == 0);
-    assert(std::string(sm::VERSION_STRING) == "1.0.0");
-    assert(std::string(STREAMMIX_VERSION) == "1.0.0");
+    assert(std::string(sm::VERSION_STRING) == "1.1.0");
+    assert(std::string(STREAMMIX_VERSION) == "1.1.0");
     std::cout << "[PASS] Version verified: " << sm::VERSION_STRING << "\n";
 
     sm::Context ctx;

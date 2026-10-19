@@ -32,6 +32,7 @@ set(LIBSTREAMMIX_SOURCES
     src/compositor/shader_pipeline.cpp
     src/output/stream_manager.cpp
     src/output/multicorder.cpp
+    src/output/record_output.cpp
 )
 
 add_library(streammix SHARED ${LIBSTREAMMIX_SOURCES})
@@ -47,11 +48,14 @@ target_include_directories(streammix
 target_link_libraries(streammix
     PUBLIC
         PkgConfig::FFMPEG
-        PkgConfig::PORTAUDIO
         OpenGL::GL
     PRIVATE
         Qt6::Core
 )
+
+if(WIN32)
+    target_link_libraries(streammix PRIVATE ws2_32 winmm shlwapi)
+endif()
 
 target_compile_definitions(streammix PRIVATE STREAMMIX_BUILDING_LIB)
 

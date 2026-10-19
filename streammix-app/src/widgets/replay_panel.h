@@ -19,8 +19,9 @@
 #include <array>
 
 #include "streammix/instant_replay.h"
+#include "streammix/frame.h"
 
-namespace SM {
+namespace sm {
 
 /// ReplayPanel — Qt6 widget that wraps InstantReplay
 ///
@@ -47,7 +48,7 @@ public:
 
     /// Push a raw RGBA frame into the ring-buffer for the currently-selected
     /// camera channel.
-    void ingestFrame(const FrameData& frame, int cameraChannel = 0);
+    void ingestFrame(VideoFramePtr frame, int cameraChannel = 0);
 
 public slots:
     void onPlay();
@@ -116,4 +117,4 @@ private:
     QTimer*      m_savedTimer = nullptr;
 };
 
-} // namespace SM
+} // namespace sm

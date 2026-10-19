@@ -55,7 +55,7 @@ public:
     void unbindField(const std::string& elementName);
 
     // ─── Engine Clock / Render ───────────────────────────────────
-    void tick(double deltaSeconds);
+    void tick(double deltaSeconds) override;
     void render();
 
 private:

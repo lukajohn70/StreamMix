@@ -3,635 +3,864 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>StreamMix — Live Production Software</title>
-  <meta name="description" content="StreamMix: Cross-platform live video production, mixing and streaming software. A powerful vMix alternative for Windows, macOS and Linux." />
+  <title>StreamMix 29 — Studio Live Broadcast Production</title>
+  <meta name="description" content="StreamMix: Native C++20 / Qt6 live production and broadcast switcher matching vMix 29." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- TITLE BAR                                                   -->
+  <!-- 1. TOP CONTROL BAR (vMix Preset, Fullscreen, Stream, Rec)   -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div id="title-bar">
-    <div id="title-bar-left">
-      <span id="app-logo">StreamMix</span>
-      <span id="app-version">v1.0</span>
+  <header id="top-control-bar">
+    <div id="top-bar-left">
+      <!-- 82px spacing reserved for macOS native traffic lights -->
+      <div class="mac-traffic-spacer"></div>
+
+      <div class="preset-btn-group">
+        <button class="top-rect-btn" id="btn-top-preset">Preset ▾</button>
+        <button class="top-rect-btn" id="btn-top-new">New</button>
+        <button class="top-rect-btn" id="btn-top-open">Open ▾</button>
+        <button class="top-rect-btn" id="btn-top-save">Save</button>
+        <button class="top-rect-btn" id="btn-top-saveas">Save As ▾</button>
+        <button class="top-rect-btn" id="btn-top-last">Last</button>
+      </div>
     </div>
-    <div id="title-bar-center">
-      <nav id="menu-bar">
-        <button class="menu-btn" id="menu-file">File</button>
-        <button class="menu-btn" id="menu-edit">Edit</button>
-        <button class="menu-btn" id="menu-view">View</button>
-        <button class="menu-btn" id="menu-add-input">Add Input ▾</button>
-        <button class="menu-btn" id="menu-settings">Settings</button>
-        <button class="menu-btn" id="menu-help">Help</button>
-      </nav>
+
+    <div id="top-bar-center">
+      <button class="top-fullscreen-btn" id="btn-top-fullscreen">Fullscreen ▾</button>
+      <div class="top-badge stream-badge active" id="badge-top-stream">STREAM</div>
+      <div class="top-badge rec-badge active" id="badge-top-rec">REC</div>
     </div>
-    <div id="title-bar-right">
-      <button class="window-btn" id="btn-minimize" title="Minimize">─</button>
-      <button class="window-btn" id="btn-maximize" title="Maximize">□</button>
-      <button class="window-btn close" id="btn-close" title="Close">✕</button>
+
+    <div id="top-bar-right">
+      <button class="top-rect-btn" id="btn-top-pause">Pause Inputs</button>
+      <button class="top-rect-btn" id="btn-top-basic">Basic</button>
+      <button class="top-rect-btn" id="btn-top-settings">Settings ▾</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 2. MAIN WORKSPACE                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <main id="app-workspace">
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- TOP SECTION: PREVIEW | CENTER TRANSITION | OUTPUT           -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <section id="monitors-row">
+
+      <!-- PREVIEW MONITOR (Solid Orange Title Bar) -->
+      <div id="preview-box" class="monitor-box">
+        <div class="monitor-header-bar preview-orange-header">
+          <span class="mon-title-text" id="preview-source-name">vMix Call Multiview</span>
+          <div class="mon-header-icons">
+            <span class="mon-icon-btn">📊</span>
+            <span class="mon-icon-btn">⌗</span>
+          </div>
+        </div>
+
+        <div class="monitor-screen-area">
+          <canvas id="preview-canvas" width="640" height="360"></canvas>
+          <div class="monitor-safe-guides" id="preview-safe-guides">
+            <div class="safe-area-action"></div>
+            <div class="safe-area-title"></div>
+          </div>
+          <!-- Side Peak Meter (Right edge of Preview) -->
+          <div class="monitor-side-meter preview-meter-right">
+            <div class="side-meter-track"><div class="side-meter-fill" id="prv-meter-l" style="height: 60%"></div></div>
+            <div class="side-meter-track"><div class="side-meter-fill" id="prv-meter-r" style="height: 65%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER TRANSITION SWITCHER COLUMN -->
+      <div id="center-transition-column">
+        <!-- Quick Play / GO Button -->
+        <button class="center-btn quickplay-btn" id="btn-center-quickplay">Quick Play</button>
+
+        <!-- Direct Cut -->
+        <button class="center-btn cut-btn" id="btn-center-cut">Cut</button>
+
+        <!-- Transitions List -->
+        <button class="center-btn trans-select-btn active" data-trans="fade">Fade ▾</button>
+        <button class="center-btn trans-select-btn" data-trans="wipe">Wipe ▾</button>
+        <button class="center-btn trans-select-btn" data-trans="fly">Fly ▾</button>
+        <button class="center-btn trans-select-btn" data-trans="zoom">Zoom ▾</button>
+
+        <!-- FTB (Fade to Black) -->
+        <button class="center-btn ftb-btn" id="btn-center-ftb">FTB</button>
+
+        <!-- Overlays 2x4 Grid (vMix 29 Expansion: 1–8) -->
+        <div class="center-overlays-grid">
+          <div class="ov-row">
+            <button class="center-ov-btn" data-ov="1">1</button>
+            <button class="center-ov-btn" data-ov="2">2</button>
+            <button class="center-ov-btn" data-ov="3">3</button>
+            <button class="center-ov-btn" data-ov="4">4</button>
+          </div>
+          <div class="ov-row">
+            <button class="center-ov-btn" data-ov="5">5</button>
+            <button class="center-ov-btn" data-ov="6">6</button>
+            <button class="center-ov-btn" data-ov="7">7</button>
+            <button class="center-ov-btn active" data-ov="8">8</button>
+          </div>
+        </div>
+
+        <!-- T-Bar Slider -->
+        <div class="center-tbar-wrap" id="center-tbar-wrap">
+          <div class="center-tbar-track"></div>
+          <div class="center-tbar-fill" id="center-tbar-fill" style="width: 0%"></div>
+          <div class="center-tbar-thumb" id="center-tbar-thumb" style="left: 0%"></div>
+        </div>
+
+        <!-- Digital Broadcast Clocks -->
+        <div class="center-clocks-wrap">
+          <div class="clock-box green-clock" id="clock-elapsed">11:13.2</div>
+          <div class="clock-box black-clock" id="clock-tod">08:11 PM</div>
+        </div>
+      </div>
+
+      <!-- OUTPUT / PROGRAM MONITOR (Solid Green Title Bar) -->
+      <div id="output-box" class="monitor-box">
+        <div class="monitor-header-bar output-green-header">
+          <span class="mon-title-text" id="program-source-name">Camera 1</span>
+          <div class="mon-header-icons">
+            <span class="mon-icon-btn">⚙</span>
+          </div>
+        </div>
+
+        <div class="monitor-screen-area">
+          <canvas id="program-canvas" width="640" height="360"></canvas>
+          <div class="monitor-safe-guides" id="output-safe-guides">
+            <div class="safe-area-action"></div>
+            <div class="safe-area-title"></div>
+          </div>
+          <!-- Side Peak Meter (Left edge of Output) -->
+          <div class="monitor-side-meter output-meter-left">
+            <div class="side-meter-track"><div class="side-meter-fill" id="pgm-meter-l" style="height: 72%"></div></div>
+            <div class="side-meter-track"><div class="side-meter-fill" id="pgm-meter-r" style="height: 75%"></div></div>
+          </div>
+          <div class="ftb-curtain" id="ftb-curtain"></div>
+        </div>
+      </div>
+
+    </section><!-- /monitors-row -->
+
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <!-- LOWER SPLIT: INPUT TRAY (LEFT) + AUDIO MIXER (RIGHT)        -->
+    <!-- ─────────────────────────────────────────────────────────── -->
+    <section id="lower-production-split">
+
+      <!-- LEFT: INPUT TRAY -->
+      <div id="input-tray-area">
+        <!-- Category Color Tabs Strip -->
+        <div id="category-strip">
+          <div class="cat-square red-sq active" data-cat="all" title="All"></div>
+          <div class="cat-square orange-sq" data-cat="media" title="Videos"></div>
+          <div class="cat-square yellow-sq" data-cat="replay" title="Replay"></div>
+          <div class="cat-square green-sq" data-cat="cam" title="Cameras"></div>
+          <div class="cat-square cyan-sq" data-cat="ndi" title="NDI"></div>
+          <div class="cat-square blue-sq" data-cat="call" title="Calls"></div>
+          <div class="cat-square purple-sq" data-cat="title" title="Titles"></div>
+          <span class="cat-search-icon">🔍</span>
+          <input type="text" id="cat-search-input" placeholder="Search inputs..." />
+        </div>
+
+        <!-- 2 Rows of 16:9 Input Tiles (6 Columns x 2 Rows) -->
+        <div id="input-tiles-grid">
+
+          <!-- Row 1, Col 1: Tile 1 — Camera 1 (In Output = Green Outline) -->
+          <article class="vmix-tile output-active" id="tile-input-1" data-id="1" data-type="cam">
+            <header class="tile-header-bar green-banner">
+              <span class="tile-num">1</span>
+              <span class="tile-name">Camera 1</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-1" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn" title="GO Action">GO</button>
+              <button class="tile-btn cut-btn" title="Cut">Cut</button>
+              <button class="tile-btn audio-btn active" title="Audio">Audio</button>
+              <button class="tile-btn gear-btn" title="Settings">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 1, Col 2: Tile 2 — Camera 2 -->
+          <article class="vmix-tile" id="tile-input-2" data-id="2" data-type="cam">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">2</span>
+              <span class="tile-name">Camera 2</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-2" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 1, Col 3: Tile 3 — Camera 3 -->
+          <article class="vmix-tile" id="tile-input-3" data-id="3" data-type="cam">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">3</span>
+              <span class="tile-name">Camera 3</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-3" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 1, Col 4: Tile 4 — vMix Call Multiview (In Preview = Orange Outline) -->
+          <article class="vmix-tile preview-active" id="tile-input-4" data-id="4" data-type="call">
+            <header class="tile-header-bar orange-banner">
+              <span class="tile-num">4</span>
+              <span class="tile-name">vMix Call Multiview</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-4" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 1, Col 5: Tile 5 — Camera | Setup -->
+          <article class="vmix-tile" id="tile-input-5" data-id="5" data-type="cam">
+            <header class="tile-header-bar green-banner">
+              <span class="tile-name">Camera &nbsp;|&nbsp; Setup</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-5" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn muted">─</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 1, Col 6: Tile 6 — Intro Video -->
+          <article class="vmix-tile" id="tile-input-6" data-id="6" data-type="media">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">5</span>
+              <span class="tile-name">Intro Video</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-6" width="320" height="180"></canvas>
+              <div class="tile-video-bar">
+                <span class="tp-btn">⏮</span>
+                <span class="tp-btn">▶</span>
+                <span class="tp-btn">🔁</span>
+              </div>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 2, Col 1: Tile 7 — Social Media Title -->
+          <article class="vmix-tile" id="tile-input-7" data-id="7" data-type="title">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">6</span>
+              <span class="tile-name">Social Media Title</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-7" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov active" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn muted">─</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 2, Col 2: Tile 8 — Title Live Show -->
+          <article class="vmix-tile" id="tile-input-8" data-id="8" data-type="title">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">7</span>
+              <span class="tile-name">Title Live Show</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-8" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov active" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn muted">─</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 2, Col 3: Tile 9 — Call Sandra -->
+          <article class="vmix-tile" id="tile-input-9" data-id="9" data-type="call">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">8</span>
+              <span class="tile-name">Call Sandra</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-9" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 2, Col 4: Tile 10 — Call Phil -->
+          <article class="vmix-tile" id="tile-input-10" data-id="10" data-type="call">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">9</span>
+              <span class="tile-name">Call Phil</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-10" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 2, Col 5: Tile 11 — Call Amanda -->
+          <article class="vmix-tile" id="tile-input-11" data-id="11" data-type="call">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">10</span>
+              <span class="tile-name">Call Amanda</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-11" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+          <!-- Row 2, Col 6: Tile 12 — Call Chris -->
+          <article class="vmix-tile" id="tile-input-12" data-id="12" data-type="call">
+            <header class="tile-header-bar blue-banner">
+              <span class="tile-num">11</span>
+              <span class="tile-name">Call Chris</span>
+              <button class="tile-close-btn" title="Close (X)">✕</button>
+            </header>
+            <div class="tile-screen">
+              <canvas class="tile-canvas" id="canvas-card-12" width="320" height="180"></canvas>
+            </div>
+            <footer class="tile-footer-bar">
+              <div class="tile-ov-grid-8">
+                <div class="ov-mini-row"><span class="m-ov" data-ov="1">1</span><span class="m-ov" data-ov="2">2</span><span class="m-ov" data-ov="3">3</span><span class="m-ov" data-ov="4">4</span></div>
+                <div class="ov-mini-row"><span class="m-ov" data-ov="5">5</span><span class="m-ov" data-ov="6">6</span><span class="m-ov" data-ov="7">7</span><span class="m-ov" data-ov="8">8</span></div>
+              </div>
+              <button class="tile-btn go-btn">GO</button>
+              <button class="tile-btn cut-btn">Cut</button>
+              <button class="tile-btn audio-btn active">Audio</button>
+              <button class="tile-btn gear-btn">⚙</button>
+            </footer>
+          </article>
+
+        </div><!-- /input-tiles-grid -->
+      </div><!-- /input-tray-area -->
+
+      <!-- RIGHT: DOCKED vMix AUDIO MIXER -->
+      <aside id="docked-audio-mixer">
+        <div id="mixer-header-tab">
+          <button class="mixer-pin-btn" title="Detach Mixer Window">📌</button>
+          <button class="mixer-tab-title" id="btn-audio-mixer-main">
+            <span class="mixer-icon">🔊</span> Audio Mixer
+          </button>
+        </div>
+
+        <div id="mixer-grid-container">
+
+          <!-- TOP ROW: OUTPUTS + INPUTS (Row 1) -->
+          <div class="mixer-tier-row mixer-row-top">
+
+            <!-- OUTPUTS Label & Group -->
+            <div class="mixer-banner-label banner-outputs">OUTPUTS</div>
+
+            <!-- Master Channel Strip -->
+            <div class="vmix-strip master-strip" data-channel="master">
+              <header class="strip-top-header green-hdr">Master</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn hp-btn" title="Headphones">🎧</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="master">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 82%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-master" style="height: 78%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recording Channel Strip -->
+            <div class="vmix-strip rec-strip" data-channel="recording">
+              <header class="strip-top-header red-hdr">Recording</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn hp-btn" title="Headphones">🎧</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="recording">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 74%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-recording" style="height: 70%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- INPUTS Label -->
+            <div class="mixer-banner-label banner-inputs">INPUTS</div>
+
+            <!-- 1 Camera 1 -->
+            <div class="vmix-strip input-strip" data-channel="1">
+              <header class="strip-top-header dark-hdr">1 Camera 1</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn active" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="1">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 85%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-1" style="height: 80%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2 Camera 2 -->
+            <div class="vmix-strip input-strip" data-channel="2">
+              <header class="strip-top-header dark-hdr">2 Camera 2</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn active" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="2">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 80%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-2" style="height: 65%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /mixer-tier-row (top) -->
+
+          <!-- BOTTOM ROW: INPUTS (Row 2) -->
+          <div class="mixer-tier-row mixer-row-bottom">
+
+            <!-- 5 Intro Video -->
+            <div class="vmix-strip input-strip" data-channel="5">
+              <header class="strip-top-header dark-hdr">5 Intro Video</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn active" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="5">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 82%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-5" style="height: 60%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 8 Call Sandra -->
+            <div class="vmix-strip input-strip" data-channel="8">
+              <header class="strip-top-header dark-hdr">8 Call Sandra</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="8">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 78%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-8" style="height: 55%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 9 Call Phil -->
+            <div class="vmix-strip input-strip" data-channel="9">
+              <header class="strip-top-header dark-hdr">9 Call Phil</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="9">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 75%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-9" style="height: 52%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 10 Call Amanda -->
+            <div class="vmix-strip input-strip" data-channel="10">
+              <header class="strip-top-header dark-hdr">10 Call Amanda</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="10">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 75%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-10" style="height: 50%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 11 Call Chris -->
+            <div class="vmix-strip input-strip" data-channel="11">
+              <header class="strip-top-header dark-hdr">11 Call Chris</header>
+              <div class="strip-pan-bar">
+                <span class="pan-line"></span><span class="pan-knob"></span><span class="pan-zero">0</span>
+              </div>
+              <div class="strip-main-area">
+                <div class="strip-button-stack">
+                  <button class="strip-icon-btn info-btn" title="Settings">ℹ</button>
+                  <button class="strip-icon-btn solo-btn" title="Solo">S</button>
+                  <button class="strip-icon-btn afv-btn" title="Audio Follows Video">⇄</button>
+                  <button class="strip-icon-btn mute-btn active" title="Mute">🔊</button>
+                  <button class="strip-icon-btn route-btn active" title="Master Bus">M</button>
+                </div>
+                <div class="strip-fader-column">
+                  <div class="fader-track-slot" data-fader="11">
+                    <div class="fader-tick-marks"></div>
+                    <div class="fader-thumb-knob" style="bottom: 75%"></div>
+                  </div>
+                  <div class="strip-led-meter">
+                    <div class="led-meter-fill" id="meter-inp-11" style="height: 48%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /mixer-tier-row (bottom) -->
+
+        </div><!-- /mixer-grid-container -->
+      </aside>
+
+    </section><!-- /lower-production-split -->
+
+  </main><!-- /app-workspace -->
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 3. vMix BOTTOM FOOTER BAR                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <footer id="vmix-footer-bar">
+    <div id="footer-actions-left">
+      <!-- Big Add Input Button -->
+      <button class="footer-add-btn" id="btn-master-add-input">
+        <span class="add-icon">＋</span> Add Input ▾
+      </button>
+      <button class="footer-gear-btn" title="Add Input Settings">⚙</button>
+
+      <!-- Record Button -->
+      <div class="footer-toggle-wrap">
+        <button class="footer-act-btn record-active" id="btn-master-record">
+          <span class="rec-circle">●</span> Record
+        </button>
+        <span class="footer-timer-chip">00:18:24</span>
+        <button class="footer-gear-btn" title="Record Settings">⚙</button>
+      </div>
+
+      <!-- External Output -->
+      <div class="footer-toggle-wrap">
+        <button class="footer-act-btn" id="btn-master-external">External</button>
+        <button class="footer-gear-btn" title="External Settings">⚙</button>
+      </div>
+
+      <!-- Stream Button -->
+      <div class="footer-toggle-wrap">
+        <button class="footer-act-btn stream-active" id="btn-master-stream">
+          <span class="stream-icon">📡</span> Stream
+        </button>
+        <button class="footer-gear-btn" title="Stream Settings">⚙</button>
+      </div>
+
+      <!-- MultiCorder -->
+      <div class="footer-toggle-wrap">
+        <button class="footer-act-btn" id="btn-master-multicorder">MultiCorder</button>
+        <button class="footer-gear-btn" title="MultiCorder Settings">⚙</button>
+      </div>
+
+      <!-- PlayList -->
+      <button class="footer-act-btn" id="btn-master-playlist">PlayList</button>
+    </div>
+
+    <!-- Right Controls: Overlays & Category Chips & Layout -->
+    <div id="footer-actions-right">
+      <button class="footer-act-btn" id="btn-footer-overlay">Overlay</button>
+      <div class="cat-chip-bar">
+        <span class="cat-tiny-chip red-ch"></span>
+        <span class="cat-tiny-chip orange-ch"></span>
+        <span class="cat-tiny-chip green-ch"></span>
+        <span class="cat-tiny-chip blue-ch"></span>
+      </div>
+      <button class="footer-act-btn icon-only" title="Grid View">⊞</button>
+      <button class="footer-act-btn icon-only" title="List View">☰</button>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4. BOTTOM TELEMETRY STATUS LINE                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div id="telemetry-status-line">
+    <div class="telem-left">
+      <span class="telem-chip green-chip" id="telem-res">1080p30</span>
+      <span class="telem-chip" id="telem-ex">EX</span>
+      <span class="telem-item">FPS: <strong id="telem-fps">30</strong></span>
+      <span class="telem-item">Render Time: <strong id="telem-render">1 ms</strong></span>
+      <span class="telem-item">GPU Mem: <strong id="telem-gpu">12%</strong></span>
+      <span class="telem-item">CPU vMix: <strong id="telem-cpu">15%</strong></span>
+      <span class="telem-item">Total: <strong id="telem-total">25%</strong></span>
+    </div>
+    <div class="telem-right">
+      <span>StreamMix 29.0.0.48 Pro</span>
     </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- MAIN APP WRAPPER                                            -->
+  <!-- 5. ADD INPUT MODAL (Authentic vMix Device Selector)         -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <div id="app-wrapper">
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- TOP ROW: PREVIEW + TRANSITION + PROGRAM        -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="top-section">
-
-      <!-- PREVIEW MONITOR -->
-      <div id="preview-monitor" class="monitor">
-        <div class="monitor-header preview-header">
-          <span class="monitor-label">PREVIEW</span>
-          <span class="monitor-source" id="preview-source-name">Stage Camera</span>
-        </div>
-        <div class="monitor-screen" id="preview-screen">
-          <div class="monitor-content preview-content">
-            <div class="monitor-placeholder-icon">▶</div>
-            <span class="monitor-placeholder-text">Preview</span>
-          </div>
-          <div class="monitor-safe-area"></div>
-        </div>
-        <div class="monitor-footer">
-          <span class="monitor-timecode" id="preview-timecode">00:00:00:00</span>
-        </div>
+  <div class="modal-backdrop" id="modal-add-input" style="display:none">
+    <div class="modal-dialog add-input-dialog">
+      <div class="modal-header">
+        <span class="modal-title">Input Select</span>
+        <button class="modal-close" id="btn-close-add-modal">✕</button>
       </div>
-
-      <!-- CENTER CONTROLS -->
-      <div id="center-controls">
-
-        <!-- Overlay channels row -->
-        <div id="overlay-section">
-          <div class="section-label">OVERLAY</div>
-          <div id="overlay-buttons">
-            <button class="overlay-btn" id="overlay-1" data-overlay="1">1</button>
-            <button class="overlay-btn" id="overlay-2" data-overlay="2">2</button>
-            <button class="overlay-btn" id="overlay-3" data-overlay="3">3</button>
-            <button class="overlay-btn" id="overlay-4" data-overlay="4">4</button>
-            <button class="overlay-btn" id="overlay-5" data-overlay="5">5</button>
-            <button class="overlay-btn" id="overlay-6" data-overlay="6">6</button>
-            <button class="overlay-btn" id="overlay-7" data-overlay="7">7</button>
-            <button class="overlay-btn" id="overlay-8" data-overlay="8">8</button>
-          </div>
+      <div class="modal-body-split">
+        <div class="modal-sidebar">
+          <button class="sidebar-cat-btn active" data-incat="camera">Camera</button>
+          <button class="sidebar-cat-btn" data-incat="ndi">NDI / Desktop Capture</button>
+          <button class="sidebar-cat-btn" data-incat="video">Video File</button>
+          <button class="sidebar-cat-btn" data-incat="audio">Audio Input</button>
+          <button class="sidebar-cat-btn" data-incat="title">Title / XAML</button>
+          <button class="sidebar-cat-btn" data-incat="virtual">Virtual Set</button>
+          <button class="sidebar-cat-btn" data-incat="color">Colour / Test Pattern</button>
         </div>
 
-        <!-- Transition type selector -->
-        <div id="transition-section">
-          <div id="transition-type-row">
-            <button class="trans-type-btn active" id="trans-cut" data-trans="cut">Cut</button>
-            <button class="trans-type-btn" id="trans-fade" data-trans="fade">Fade</button>
-            <button class="trans-type-btn" id="trans-zoom" data-trans="zoom">Zoom</button>
-            <button class="trans-type-btn" id="trans-wipe" data-trans="wipe">Wipe</button>
-            <button class="trans-type-btn" id="trans-slide" data-trans="slide">Slide</button>
-            <button class="trans-type-btn" id="trans-fly" data-trans="fly">Fly</button>
-            <button class="trans-type-btn" id="trans-cube" data-trans="cube">Cube</button>
-            <button class="trans-type-btn stinger-btn" id="trans-stinger1" data-trans="stinger1">Stgr 1</button>
+        <div class="modal-content-panel">
+          <div class="form-group">
+            <label for="input-device-select">Device / Source Name:</label>
+            <select id="input-device-select" class="form-control">
+              <option value="cam_facetime">FaceTime HD Camera (Built-in USB)</option>
+              <option value="cam_blackmagic">Blackmagic UltraStudio 4K Mini (SDI 1)</option>
+              <option value="cam_magewell">Magewell USB Capture HDMI Gen 2</option>
+              <option value="cam_ndi_floor">STUDIO-MAC (NDI|HX3 Floor Cam)</option>
+              <option value="cam_ndi_screen">PRODUCER-PC (NDI Screen Capture)</option>
+            </select>
           </div>
 
-          <!-- Duration + GO button -->
-          <div id="transition-controls">
-            <div id="duration-control">
-              <label class="ctrl-label" for="trans-duration">Duration</label>
-              <input type="number" id="trans-duration" class="duration-input" value="500" min="0" max="9999" />
-              <span class="ctrl-unit">ms</span>
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="input-resolution-select">Resolution:</label>
+              <select id="input-resolution-select" class="form-control">
+                <option value="1920x1080">1920x1080 (16:9 1080p)</option>
+                <option value="3840x2160">3840x2160 (16:9 4K UHD)</option>
+                <option value="1280x720">1280x720 (16:9 720p)</option>
+              </select>
             </div>
-            <button id="go-btn" title="Transition to Preview">
-              <span id="go-arrow-left">◀</span>
-              GO
-              <span id="go-arrow-right">▶</span>
-            </button>
-            <div id="cut-btn-wrap">
-              <button id="cut-direct-btn" title="Cut directly to Preview">CUT</button>
+            <div class="form-group half">
+              <label for="input-framerate-select">Frame Rate:</label>
+              <select id="input-framerate-select" class="form-control">
+                <option value="59.94p">59.94p (NTSC Broadcast)</option>
+                <option value="60p">60.00p</option>
+                <option value="50p">50.00p (PAL Broadcast)</option>
+                <option value="29.97p">29.97p</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        <!-- Stinger row 2 -->
-        <div id="stinger-section">
-          <div class="section-label">STINGER</div>
-          <div id="stinger-buttons">
-            <button class="stinger-slot-btn" id="stinger-slot-1" data-stinger="1">1</button>
-            <button class="stinger-slot-btn" id="stinger-slot-2" data-stinger="2">2</button>
-            <button class="stinger-slot-btn" id="stinger-slot-3" data-stinger="3">3</button>
-            <button class="stinger-slot-btn" id="stinger-slot-4" data-stinger="4">4</button>
-            <button class="stinger-slot-btn" id="stinger-slot-5" data-stinger="5">5</button>
-            <button class="stinger-slot-btn" id="stinger-slot-6" data-stinger="6">6</button>
-            <button class="stinger-slot-btn" id="stinger-slot-7" data-stinger="7">7</button>
-            <button class="stinger-slot-btn" id="stinger-slot-8" data-stinger="8">8</button>
+          <div class="form-group">
+            <label for="input-audio-device">Audio Device:</label>
+            <select id="input-audio-device" class="form-control">
+              <option value="embedded">Use Embedded Camera Audio (Ch 1/2)</option>
+              <option value="focusrite">Focusrite Scarlett 4i4 USB</option>
+              <option value="dante">Dante Virtual Soundcard (Channels 1-8)</option>
+              <option value="none">None (Mute)</option>
+            </select>
           </div>
-        </div>
 
-      </div>
-
-      <!-- PROGRAM MONITOR -->
-      <div id="program-monitor" class="monitor">
-        <div class="monitor-header program-header">
-          <span class="monitor-label">OUTPUT</span>
-          <span class="monitor-source" id="program-source-name">Guitar Camera</span>
-          <span class="live-badge">LIVE</span>
-        </div>
-        <div class="monitor-screen" id="program-screen">
-          <div class="monitor-content program-content">
-            <div class="monitor-placeholder-icon">▶</div>
-            <span class="monitor-placeholder-text">Program</span>
-          </div>
-          <div class="monitor-safe-area"></div>
-        </div>
-        <div class="monitor-footer">
-          <span class="monitor-timecode" id="program-timecode">00:00:00:00</span>
-          <span id="stream-duration" class="stream-timer">00:00:00</span>
-        </div>
-      </div>
-
-      <!-- AUDIO MIXER SIDEBAR -->
-      <div id="audio-mixer">
-        <div id="audio-mixer-header">
-          <span>Audio Mixer</span>
-          <button class="icon-btn" id="audio-settings-btn" title="Audio Settings">⚙</button>
-        </div>
-        <div id="audio-buses-row">
-          <button class="bus-tab active" id="bus-master" data-bus="master">Master</button>
-          <button class="bus-tab" id="bus-a" data-bus="a">A</button>
-          <button class="bus-tab" id="bus-b" data-bus="b">B</button>
-          <button class="bus-tab" id="bus-c" data-bus="c">C</button>
-          <button class="bus-tab" id="bus-d" data-bus="d">D</button>
-        </div>
-        <div id="audio-channels">
-          <!-- Master -->
-          <div class="audio-channel" id="audio-ch-master">
-            <div class="ch-label">Master</div>
-            <div class="ch-meter-wrap">
-              <div class="ch-meter" id="meter-master-l"><div class="meter-fill" style="height:65%"></div></div>
-              <div class="ch-meter" id="meter-master-r"><div class="meter-fill" style="height:72%"></div></div>
-            </div>
-            <input type="range" class="ch-fader" id="fader-master" min="0" max="100" value="100" orient="vertical" />
-            <div class="ch-controls">
-              <button class="ch-mute-btn" id="mute-master">M</button>
-              <button class="ch-solo-btn" id="solo-master">S</button>
-            </div>
-          </div>
-          <!-- Input channels -->
-          <div class="audio-channel" id="audio-ch-1">
-            <div class="ch-label">Cam 1</div>
-            <div class="ch-meter-wrap">
-              <div class="ch-meter"><div class="meter-fill" style="height:45%"></div></div>
-              <div class="ch-meter"><div class="meter-fill" style="height:50%"></div></div>
-            </div>
-            <input type="range" class="ch-fader" id="fader-1" min="0" max="100" value="80" orient="vertical" />
-            <div class="ch-controls">
-              <button class="ch-mute-btn" id="mute-1">M</button>
-              <button class="ch-solo-btn" id="solo-1">S</button>
-            </div>
-          </div>
-          <div class="audio-channel" id="audio-ch-2">
-            <div class="ch-label">Cam 2</div>
-            <div class="ch-meter-wrap">
-              <div class="ch-meter"><div class="meter-fill" style="height:30%"></div></div>
-              <div class="ch-meter"><div class="meter-fill" style="height:28%"></div></div>
-            </div>
-            <input type="range" class="ch-fader" id="fader-2" min="0" max="100" value="75" orient="vertical" />
-            <div class="ch-controls">
-              <button class="ch-mute-btn" id="mute-2">M</button>
-              <button class="ch-solo-btn" id="solo-2">S</button>
-            </div>
-          </div>
-          <div class="audio-channel" id="audio-ch-3">
-            <div class="ch-label">Cam 3</div>
-            <div class="ch-meter-wrap">
-              <div class="ch-meter"><div class="meter-fill" style="height:15%"></div></div>
-              <div class="ch-meter"><div class="meter-fill" style="height:18%"></div></div>
-            </div>
-            <input type="range" class="ch-fader" id="fader-3" min="0" max="100" value="70" orient="vertical" />
-            <div class="ch-controls">
-              <button class="ch-mute-btn muted" id="mute-3">M</button>
-              <button class="ch-solo-btn" id="solo-3">S</button>
-            </div>
-          </div>
-          <div class="audio-channel" id="audio-ch-4">
-            <div class="ch-label">Cam 4</div>
-            <div class="ch-meter-wrap">
-              <div class="ch-meter"><div class="meter-fill" style="height:55%"></div></div>
-              <div class="ch-meter"><div class="meter-fill" style="height:60%"></div></div>
-            </div>
-            <input type="range" class="ch-fader" id="fader-4" min="0" max="100" value="85" orient="vertical" />
-            <div class="ch-controls">
-              <button class="ch-mute-btn" id="mute-4">M</button>
-              <button class="ch-solo-btn" id="solo-4">S</button>
-            </div>
+          <div class="form-group">
+            <label for="input-friendly-name">Input Name:</label>
+            <input type="text" id="input-friendly-name" class="form-control" value="Camera Feed" placeholder="e.g. Stage Center" />
           </div>
         </div>
       </div>
 
-    </div><!-- /top-section -->
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- INPUT FILTER BAR                               -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="input-filter-bar">
-      <div id="input-filter-colors">
-        <button class="color-filter-btn active all-filter" id="filter-all" data-filter="all" title="Show All"></button>
-        <button class="color-filter-btn" id="filter-cam"    data-filter="cam"   title="Cameras"   style="background:#4caf50;"></button>
-        <button class="color-filter-btn" id="filter-media"  data-filter="media" title="Media"     style="background:#ff9800;"></button>
-        <button class="color-filter-btn" id="filter-ndi"    data-filter="ndi"   title="NDI"       style="background:#2196f3;"></button>
-        <button class="color-filter-btn" id="filter-title"  data-filter="title" title="Titles"    style="background:#9c27b0;"></button>
-        <button class="color-filter-btn" id="filter-audio"  data-filter="audio" title="Audio"     style="background:#f44336;"></button>
-      </div>
-      <div id="input-search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="input-search" placeholder="Search inputs..." />
-      </div>
-      <div id="input-filter-right">
-        <button class="icon-btn" id="btn-add-input" title="Add Input">+ Add Input</button>
-        <button class="icon-btn" id="btn-grid-view" title="Grid View">⊞</button>
-        <button class="icon-btn" id="btn-list-view" title="List View">☰</button>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="btn-cancel-add-input">Cancel</button>
+        <button class="btn-confirm" id="btn-confirm-add-input">OK</button>
       </div>
     </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- INPUT GRID                                     -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="input-grid">
-
-      <!-- Input Card 1 — Camera (in program = red border) -->
-      <div class="input-card program-active" id="input-card-1" data-input="1" data-type="cam">
-        <div class="card-header" style="--cat-color:#4caf50">
-          <span class="card-number" style="background:#4caf50">1</span>
-          <span class="card-title">Stage Camera</span>
-          <button class="card-close" data-id="1" title="Remove">✕</button>
-        </div>
-        <div class="card-preview program-tally">
-          <div class="card-thumb-placeholder cam-placeholder">
-            <span class="thumb-icon">📷</span>
-          </div>
-          <div class="tally-badge program-badge">PGM</div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:60%"></span>
-              <span class="mini-bar" style="height:65%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 2 — Camera (in preview = green border) -->
-      <div class="input-card preview-active" id="input-card-2" data-input="2" data-type="cam">
-        <div class="card-header" style="--cat-color:#4caf50">
-          <span class="card-number" style="background:#4caf50">2</span>
-          <span class="card-title">Guitar Camera</span>
-          <button class="card-close" data-id="2" title="Remove">✕</button>
-        </div>
-        <div class="card-preview preview-tally">
-          <div class="card-thumb-placeholder cam-placeholder">
-            <span class="thumb-icon">📷</span>
-          </div>
-          <div class="tally-badge preview-badge">PRV</div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:40%"></span>
-              <span class="mini-bar" style="height:45%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 3 — Camera -->
-      <div class="input-card" id="input-card-3" data-input="3" data-type="cam">
-        <div class="card-header" style="--cat-color:#4caf50">
-          <span class="card-number" style="background:#4caf50">3</span>
-          <span class="card-title">Singer Camera</span>
-          <button class="card-close" data-id="3" title="Remove">✕</button>
-        </div>
-        <div class="card-preview">
-          <div class="card-thumb-placeholder cam-placeholder">
-            <span class="thumb-icon">📷</span>
-          </div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:20%"></span>
-              <span class="mini-bar" style="height:25%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 4 — Camera -->
-      <div class="input-card" id="input-card-4" data-input="4" data-type="cam">
-        <div class="card-header" style="--cat-color:#4caf50">
-          <span class="card-number" style="background:#4caf50">4</span>
-          <span class="card-title">Drums Camera</span>
-          <button class="card-close" data-id="4" title="Remove">✕</button>
-        </div>
-        <div class="card-preview">
-          <div class="card-thumb-placeholder cam-placeholder">
-            <span class="thumb-icon">📷</span>
-          </div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:55%"></span>
-              <span class="mini-bar" style="height:60%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 5 — Media (orange) -->
-      <div class="input-card" id="input-card-5" data-input="5" data-type="media">
-        <div class="card-header" style="--cat-color:#ff9800">
-          <span class="card-number" style="background:#ff9800">5</span>
-          <span class="card-title">Intro Video</span>
-          <button class="card-close" data-id="5" title="Remove">✕</button>
-        </div>
-        <div class="card-preview">
-          <div class="card-thumb-placeholder media-placeholder">
-            <span class="thumb-icon">🎬</span>
-          </div>
-          <div class="playback-controls-overlay">
-            <button class="pb-btn" title="Rewind">⏮</button>
-            <button class="pb-btn play-btn" title="Play">▶</button>
-            <button class="pb-btn" title="Stop">⏹</button>
-            <button class="pb-btn loop-btn active" title="Loop">🔁</button>
-          </div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:0%"></span>
-              <span class="mini-bar" style="height:0%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 6 — Close Up Camera -->
-      <div class="input-card" id="input-card-6" data-input="6" data-type="cam">
-        <div class="card-header" style="--cat-color:#4caf50">
-          <span class="card-number" style="background:#4caf50">6</span>
-          <span class="card-title">Close Up Camera</span>
-          <button class="card-close" data-id="6" title="Remove">✕</button>
-        </div>
-        <div class="card-preview">
-          <div class="card-thumb-placeholder cam-placeholder">
-            <span class="thumb-icon">📷</span>
-          </div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:30%"></span>
-              <span class="mini-bar" style="height:32%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 7 — Crowd Camera -->
-      <div class="input-card" id="input-card-7" data-input="7" data-type="cam">
-        <div class="card-header" style="--cat-color:#4caf50">
-          <span class="card-number" style="background:#4caf50">7</span>
-          <span class="card-title">Crowd Camera</span>
-          <button class="card-close" data-id="7" title="Remove">✕</button>
-        </div>
-        <div class="card-preview">
-          <div class="card-thumb-placeholder cam-placeholder">
-            <span class="thumb-icon">📷</span>
-          </div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:20%"></span>
-              <span class="mini-bar" style="height:22%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Card 8 — Title/Graphic (purple) -->
-      <div class="input-card" id="input-card-8" data-input="8" data-type="title">
-        <div class="card-header" style="--cat-color:#9c27b0">
-          <span class="card-number" style="background:#9c27b0">8</span>
-          <span class="card-title">Social Media Feed Title</span>
-          <button class="card-close" data-id="8" title="Remove">✕</button>
-        </div>
-        <div class="card-preview">
-          <div class="card-thumb-placeholder title-placeholder">
-            <span class="thumb-icon">📝</span>
-            <span class="title-preview-text">LIVE FROM<br/>Rock Fest</span>
-          </div>
-        </div>
-        <div class="card-toolbar">
-          <div class="card-overlays">
-            <button class="card-ov-btn ov-active" data-ov="1">1</button>
-            <button class="card-ov-btn" data-ov="2">2</button>
-            <button class="card-ov-btn" data-ov="3">3</button>
-            <button class="card-ov-btn" data-ov="4">4</button>
-            <button class="card-ov-btn" data-ov="5">5</button>
-            <button class="card-ov-btn" data-ov="6">6</button>
-            <button class="card-ov-btn" data-ov="7">7</button>
-            <button class="card-ov-btn" data-ov="8">8</button>
-          </div>
-          <div class="card-actions">
-            <button class="card-action-btn go-btn-card" title="GO">GO</button>
-            <button class="card-action-btn cut-btn-card" title="Cut">Cut</button>
-            <button class="card-action-btn audio-btn-card" title="Audio">🔊</button>
-            <span class="card-mini-meter">
-              <span class="mini-bar" style="height:0%"></span>
-              <span class="mini-bar" style="height:0%"></span>
-            </span>
-            <button class="card-action-btn settings-btn-card" title="Settings">⚙</button>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /input-grid -->
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- BOTTOM STATUS / CONTROL BAR                   -->
-    <!-- ══════════════════════════════════════════════ -->
-    <div id="status-bar">
-      <div id="status-bar-left">
-        <span class="stat-chip" id="stat-resolution">1080p30</span>
-        <span class="stat-text" id="stat-ex">EX</span>
-        <span class="stat-item">FPS: <strong id="stat-fps">30</strong></span>
-        <span class="stat-item">Render: <strong id="stat-render">1ms</strong></span>
-        <span class="stat-item">GPU: <strong id="stat-gpu">15%</strong></span>
-        <span class="stat-item">CPU: <strong id="stat-cpu">4%</strong></span>
-        <span class="stat-item">Total: <strong id="stat-total">8%</strong></span>
-      </div>
-
-      <div id="status-bar-center">
-        <!-- Add Input -->
-        <button class="ctrl-btn" id="ctrl-add-input">
-          <span class="ctrl-icon">＋</span> Add Input
-          <span class="ctrl-arrow">▾</span>
-        </button>
-
-        <!-- Record -->
-        <div class="ctrl-group" id="ctrl-group-record">
-          <button class="ctrl-btn record-btn" id="ctrl-record">
-            <span class="status-led led-off" id="led-record"></span>
-            Record
-          </button>
-          <button class="ctrl-gear" id="ctrl-record-gear" title="Record Settings">⚙</button>
-        </div>
-
-        <div class="ctrl-divider"></div>
-
-        <!-- External -->
-        <div class="ctrl-group" id="ctrl-group-external">
-          <button class="ctrl-btn ext-btn" id="ctrl-external">
-            <span class="status-led led-off" id="led-external"></span>
-            External
-          </button>
-          <button class="ctrl-gear" id="ctrl-external-gear" title="External Settings">⚙</button>
-        </div>
-
-        <div class="ctrl-divider"></div>
-
-        <!-- Stream -->
-        <div class="ctrl-group" id="ctrl-group-stream">
-          <button class="ctrl-btn stream-btn" id="ctrl-stream">
-            <span class="status-led led-on" id="led-stream"></span>
-            Stream
-          </button>
-          <span class="ctrl-timer" id="ctrl-stream-timer">00:28:06</span>
-          <button class="ctrl-gear" id="ctrl-stream-gear" title="Stream Settings">⚙</button>
-        </div>
-
-        <div class="ctrl-divider"></div>
-
-        <!-- MultiCorder -->
-        <div class="ctrl-group" id="ctrl-group-multicorder">
-          <button class="ctrl-btn multicorder-btn" id="ctrl-multicorder">
-            <span class="status-led led-off" id="led-multicorder"></span>
-            MultiCorder
-          </button>
-          <button class="ctrl-gear" id="ctrl-multicorder-gear" title="MultiCorder Settings">⚙</button>
-        </div>
-      </div>
-
-      <div id="status-bar-right">
-        <button class="icon-btn" id="btn-fullscreen" title="Fullscreen Output">⛶</button>
-        <button class="icon-btn" id="btn-web-controller" title="Web Controller">🌐</button>
-        <button class="icon-btn" id="btn-ndi-output" title="NDI Output">NDI</button>
-      </div>
-    </div>
-
-  </div><!-- /app-wrapper -->
+  </div>
 
   <script src="app.js"></script>
 </body>

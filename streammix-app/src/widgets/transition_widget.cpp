@@ -183,6 +183,49 @@ void TransitionWidget::setupUI() {
     middleRow->addWidget(m_tbarSlider, 1, Qt::AlignHCenter);
 
     mainLayout->addLayout(middleRow);
+
+    // 4. Dual Broadcast Clocks (vMix Digital Clocks)
+    auto* clockRow = new QHBoxLayout();
+    clockRow->setSpacing(4);
+
+    m_clockElapsed = new QLabel("00:00.0", this);
+    m_clockElapsed->setFixedHeight(22);
+    m_clockElapsed->setAlignment(Qt::AlignCenter);
+    m_clockElapsed->setStyleSheet(R"(
+        QLabel {
+            background-color: #064e3b;
+            color: #34d399;
+            font-family: 'Roboto Mono', 'JetBrains Mono', monospace;
+            font-weight: bold;
+            font-size: 11px;
+            border-radius: 2px;
+            border: 1px solid #059669;
+        }
+    )");
+    clockRow->addWidget(m_clockElapsed, 1);
+
+    m_clockTod = new QLabel("12:00 PM", this);
+    m_clockTod->setFixedHeight(22);
+    m_clockTod->setAlignment(Qt::AlignCenter);
+    m_clockTod->setStyleSheet(R"(
+        QLabel {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Roboto Mono', 'JetBrains Mono', monospace;
+            font-weight: bold;
+            font-size: 11px;
+            border-radius: 2px;
+            border: 1px solid #334155;
+        }
+    )");
+    clockRow->addWidget(m_clockTod, 1);
+
+    mainLayout->addLayout(clockRow);
+}
+
+void TransitionWidget::updateClocks(const QString& elapsed, const QString& tod) {
+    if (m_clockElapsed && !elapsed.isEmpty()) m_clockElapsed->setText(elapsed);
+    if (m_clockTod && !tod.isEmpty()) m_clockTod->setText(tod);
 }
 
 void TransitionWidget::setTBarPosition(float pos) {

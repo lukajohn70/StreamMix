@@ -7,9 +7,11 @@
 #include <QLabel>
 #include <QToolBar>
 #include <QTabWidget>
+#include <QButtonGroup>
 #include <unordered_map>
 
 #include "streammix.h"
+#include "audio_player.h"
 #include "widgets/monitor_widget.h"
 #include "widgets/transition_widget.h"
 #include "widgets/input_card_widget.h"
@@ -37,6 +39,10 @@ private slots:
     void onInputPreviewClicked(uint64_t sourceId);
     void onInputCutClicked(uint64_t sourceId);
     void onInputGoClicked(uint64_t sourceId);
+    void onInputCloseClicked(uint64_t sourceId);
+    void onInputSettingsClicked(uint64_t sourceId);
+    void onCategoryFilterChanged(int id);
+    void onOpenSettings();
 
     // Preset persistence
     void onNewPreset();
@@ -53,10 +59,17 @@ private slots:
 
     void onStreamToggled(bool checked);
     void onRecordToggled(bool checked);
+    void onExternalToggled(bool checked);
+    void onMultiCorderToggled(bool checked);
+    void onPlaylistToggled(bool checked);
+    void onInputOverlayToggled(uint64_t sourceId, int channel);
 
 private:
     QString       m_currentPresetPath;
+    AudioPlayer   m_audioPlayer;
+    QButtonGroup* m_categoryGroup = nullptr;
     void setupUI();
+    void setupBottomControlBar(QVBoxLayout* rootLayout);
     void setupToolBar();
     void setupMenuBar();
     void setupStatusBar();
@@ -85,12 +98,22 @@ private:
 
     // Bottom panels
     AudioMixerWidget* m_audioMixerWidget = nullptr;
+    QTabWidget*       m_rightTabs        = nullptr;
     PTZPanel*         m_ptzPanel         = nullptr;
-    SM::ReplayPanel*  m_replayPanel      = nullptr;
+    ReplayPanel*      m_replayPanel      = nullptr;
+    uint64_t          m_lastProgramSourceId = 0;
 
-    // Toolbar buttons
+    // Control Bar Buttons
     QPushButton* m_btnStream = nullptr;
     QPushButton* m_btnRecord = nullptr;
+    QPushButton* m_btnExternal = nullptr;
+    QPushButton* m_btnMultiCorder = nullptr;
+    QPushButton* m_btnPlaylist = nullptr;
+
+    // Automated PlayList sequencer
+    QTimer* m_playlistTimer = nullptr;
+    bool    m_playlistRunning = false;
+    size_t  m_playlistIndex = 0;
 
     // Input deck
     QWidget* m_inputDeckContainer = nullptr;

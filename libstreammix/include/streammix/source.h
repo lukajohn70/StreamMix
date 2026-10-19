@@ -76,10 +76,21 @@ public:
     virtual bool  start(const SourceSettings& settings) = 0;
     virtual void  stop()  = 0;
     virtual bool  isRunning() const { return m_state == SourceState::Running; }
+    virtual void  tick(double /*deltaSeconds*/) {}
 
     // ── Callbacks ────────────────────────────────────────────
     void setVideoCallback(VideoCallback cb) { m_videoCb = std::move(cb); }
     void setAudioCallback(AudioCallback cb) { m_audioCb = std::move(cb); }
+
+    // ── Playback & Transport Controls (vMix Video Inputs) ───
+    virtual void   pause() {}
+    virtual void   resume() {}
+    virtual bool   isPaused() const { return false; }
+    virtual void   seek(double /*seconds*/) {}
+    virtual double durationSeconds() const { return 0.0; }
+    virtual double positionSeconds() const { return 0.0; }
+    virtual void   setLoop(bool /*loop*/) {}
+    virtual bool   isLooping() const { return false; }
 
     // ── Info ─────────────────────────────────────────────────
     const std::string& name()  const { return m_name; }

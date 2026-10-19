@@ -3,6 +3,7 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QString>
+#include <QTimer>
 
 namespace sm {
 

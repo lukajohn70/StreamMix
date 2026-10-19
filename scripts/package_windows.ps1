@@ -57,6 +57,17 @@ Write-Host "🔧  Running windeployqt..." -ForegroundColor Yellow
 windeployqt --release --no-translations --no-system-d3d-compiler `
     --no-opengl-sw --compiler-runtime "$ExePath"
 
+# Bundle FFmpeg DLLs if present
+if ($env:FFMPEG_DIR -and (Test-Path "$env:FFMPEG_DIR\bin")) {
+    Write-Host "📦  Bundling FFmpeg DLLs from $env:FFMPEG_DIR\bin..." -ForegroundColor Yellow
+    $BinDir = Split-Path -Parent $ExePath
+    Copy-Item -Path "$env:FFMPEG_DIR\bin\*.dll" -Destination $BinDir -Force
+} elseif (Test-Path "C:\ffmpeg\bin") {
+    Write-Host "📦  Bundling FFmpeg DLLs from C:\ffmpeg\bin..." -ForegroundColor Yellow
+    $BinDir = Split-Path -Parent $ExePath
+    Copy-Item -Path "C:\ffmpeg\bin\*.dll" -Destination $BinDir -Force
+}
+
 # ── 3. WiX MSI packaging via CPack ──────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 

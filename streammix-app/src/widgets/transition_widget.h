@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QSlider>
 #include <QSpinBox>
+#include <QLabel>
 #include <vector>
 #include "streammix/compositor.h"
 
@@ -18,6 +19,7 @@ public:
 
     void setTBarPosition(float pos);
     void setOverlayActive(int channel, bool active);
+    void updateClocks(const QString& elapsed, const QString& tod);
 
 signals:
     void cutRequested();
@@ -43,6 +45,8 @@ private:
     QPushButton* m_btnFtb = nullptr;
     QSlider* m_tbarSlider = nullptr;
     QSpinBox* m_durationSpin = nullptr;
+    QLabel* m_clockElapsed = nullptr;
+    QLabel* m_clockTod = nullptr;
 
     TransitionType m_selectedTransition = TransitionType::Fade;
 };

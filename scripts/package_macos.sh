@@ -32,99 +32,60 @@ mkdir -p "$DIST_DIR"
 
 APP_SRC="$BUILD_DIR/$APP_BUNDLE"
 
-# ── 1. Configure + Build Application ──────────────────────────────────────────
-BUILD_SUCCESS=false
+# ── 1. Locate Qt6 and Universal Dependencies ──────────────────────────────────
+QT6_PREFIX=""
+DEPS_PREFIX=""
 
-# Try CMake Qt6 build first if Qt6 is installed
-if command -v cmake &>/dev/null && cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 2>/dev/null; then
-    if cmake --build "$BUILD_DIR" --config "$BUILD_TYPE" --parallel "$(sysctl -n hw.logicalcpu)" 2>/dev/null; then
-        if [ -d "$BUILD_DIR/streammix-app/$APP_BUNDLE" ]; then
-            APP_SRC="$BUILD_DIR/streammix-app/$APP_BUNDLE"
-            BUILD_SUCCESS=true
-        elif [ -d "$BUILD_DIR/$APP_BUNDLE" ]; then
-            APP_SRC="$BUILD_DIR/$APP_BUNDLE"
-            BUILD_SUCCESS=true
-        fi
-    fi
+if [ -d "/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-qt6-2026-07-15-universal" ]; then
+    QT6_PREFIX="/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-qt6-2026-07-15-universal"
+fi
+if [ -d "/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-2026-07-15-universal" ]; then
+    DEPS_PREFIX="/Applications/MAMP/htdocs/obs-vmix/obs-studio/.deps/obs-deps-2026-07-15-universal"
 fi
 
-# Fallback / Native Standalone Engine Build
-if [ "$BUILD_SUCCESS" = false ]; then
-    echo "ℹ️   Building native StreamMix production bundle with clang++ C++20..."
-    mkdir -p "$BUILD_DIR/bin"
+CMAKE_PREFIX=""
+if [ -n "$QT6_PREFIX" ] && [ -n "$DEPS_PREFIX" ]; then
+    CMAKE_PREFIX="-DCMAKE_PREFIX_PATH=$QT6_PREFIX;$DEPS_PREFIX"
+elif [ -n "$QT6_PREFIX" ]; then
+    CMAKE_PREFIX="-DCMAKE_PREFIX_PATH=$QT6_PREFIX"
+fi
 
-    clang++ -std=c++20 -O3 \
-        -I"$ROOT_DIR/libstreammix/include" \
-        -I"$ROOT_DIR/libstreammix/src" \
-        "$ROOT_DIR/src/preview_main.cpp" \
-        "$ROOT_DIR/libstreammix/src/core/context.cpp" \
-        "$ROOT_DIR/libstreammix/src/core/data_source.cpp" \
-        "$ROOT_DIR/libstreammix/src/core/preset_manager.cpp" \
-        "$ROOT_DIR/libstreammix/src/capture/source.cpp" \
-        "$ROOT_DIR/libstreammix/src/capture/title_source.cpp" \
-        "$ROOT_DIR/libstreammix/src/compositor/compositor.cpp" \
-        "$ROOT_DIR/libstreammix/src/compositor/chroma_key.cpp" \
-        "$ROOT_DIR/libstreammix/src/compositor/virtual_set.cpp" \
-        "$ROOT_DIR/libstreammix/src/compositor/shader_pipeline.cpp" \
-        "$ROOT_DIR/libstreammix/src/audio/audio_mixer.cpp" \
-        "$ROOT_DIR/libstreammix/src/audio/audio_dsp.cpp" \
-        "$ROOT_DIR/libstreammix/src/control/control_surface.cpp" \
-        "$ROOT_DIR/libstreammix/src/control/ptz_controller.cpp" \
-        "$ROOT_DIR/libstreammix/src/replay/instant_replay.cpp" \
-        "$ROOT_DIR/libstreammix/src/scene/scene.cpp" \
-        "$ROOT_DIR/libstreammix/src/scene/scene_manager.cpp" \
-        "$ROOT_DIR/libstreammix/src/output/rtmp_output.cpp" \
-        "$ROOT_DIR/libstreammix/src/output/stream_manager.cpp" \
-        "$ROOT_DIR/libstreammix/src/output/multicorder.cpp" \
-        "$ROOT_DIR/libstreammix/src/output/web_server.cpp" \
-        -o "$BUILD_DIR/bin/StreamMix"
+# ── 2. Configure + Build Native C++20 Qt6 Application ─────────────────────────
+echo "⚙️   Configuring CMake with native Qt6 & FFmpeg..."
+cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    $CMAKE_PREFIX \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
 
-    # Assemble macOS .app bundle directory hierarchy
-    echo "📦  Assembling $APP_BUNDLE structure..."
-    rm -rf "$APP_SRC"
-    mkdir -p "$APP_SRC/Contents/MacOS"
-    mkdir -p "$APP_SRC/Contents/Resources"
+echo "🔨  Compiling native StreamMix broadcast engine..."
+cmake --build "$BUILD_DIR" --config "$BUILD_TYPE" --parallel "$(sysctl -n hw.logicalcpu)"
 
-    cp "$BUILD_DIR/bin/StreamMix" "$APP_SRC/Contents/MacOS/StreamMix"
-    chmod +x "$APP_SRC/Contents/MacOS/StreamMix"
+# Locate built .app bundle
+if [ -d "$BUILD_DIR/bin/$APP_BUNDLE" ]; then
+    APP_SRC="$BUILD_DIR/bin/$APP_BUNDLE"
+elif [ -d "$BUILD_DIR/streammix-app/$APP_BUNDLE" ]; then
+    APP_SRC="$BUILD_DIR/streammix-app/$APP_BUNDLE"
+elif [ -d "$BUILD_DIR/$APP_BUNDLE" ]; then
+    APP_SRC="$BUILD_DIR/$APP_BUNDLE"
+else
+    echo "❌ Error: Could not locate built $APP_BUNDLE in $BUILD_DIR"
+    exit 1
+fi
 
-    # Copy Web Controller / Telestrator assets
-    cp "$ROOT_DIR/index.html" "$APP_SRC/Contents/Resources/" 2>/dev/null || true
-    cp "$ROOT_DIR/style.css"  "$APP_SRC/Contents/Resources/" 2>/dev/null || true
-    cp "$ROOT_DIR/app.js"     "$APP_SRC/Contents/Resources/" 2>/dev/null || true
+echo "📦  Located native app bundle: $APP_SRC"
 
-    # Generate Info.plist
-    cat <<EOF > "$APP_SRC/Contents/Info.plist"
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>StreamMix</string>
-    <key>CFBundleIdentifier</key>
-    <string>live.streammix.app</string>
-    <key>CFBundleName</key>
-    <string>StreamMix</string>
-    <key>CFBundleDisplayName</key>
-    <string>StreamMix Live Production</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>${VERSION}</string>
-    <key>CFBundleVersion</key>
-    <string>${VERSION}</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>StreamMix requires camera access for live video production.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>StreamMix requires microphone access for live audio mixing.</string>
-</dict>
-</plist>
+# ── 3. Bundle Cocoa Platform Plugins & qt.conf ────────────────────────────────
+mkdir -p "$APP_SRC/Contents/PlugIns/platforms"
+mkdir -p "$APP_SRC/Contents/Resources"
+
+if [ -n "$QT6_PREFIX" ] && [ -f "$QT6_PREFIX/plugins/platforms/libqcocoa.dylib" ]; then
+    cp "$QT6_PREFIX/plugins/platforms/libqcocoa.dylib" "$APP_SRC/Contents/PlugIns/platforms/"
+fi
+
+cat <<EOF > "$APP_SRC/Contents/Resources/qt.conf"
+[Paths]
+Plugins = PlugIns
 EOF
-fi
 
 # ── 2. Bundle Qt frameworks if macdeployqt is present ─────────────────────────
 if command -v macdeployqt &>/dev/null; then

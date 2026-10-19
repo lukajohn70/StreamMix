@@ -21,6 +21,11 @@
 
 namespace sm {
 
+class RecordOutput;
+class VirtualCamOutput;
+class MultiCorder;
+class MultiStreamManager;
+
 struct ContextConfig {
     int videoWidth = 1920;
     int videoHeight = 1080;
@@ -32,7 +37,7 @@ struct ContextConfig {
 class Context {
 public:
     explicit Context(ContextConfig config = ContextConfig{});
-    ~Context() = default;
+    ~Context();
 
     // ─── Lifecycle ───────────────────────────────────────────────
     bool initialize();
@@ -52,6 +57,13 @@ public:
     AudioMixer& audioMixer() { return *m_audioMixer; }
     const AudioMixer& audioMixer() const { return *m_audioMixer; }
 
+    MultiStreamManager& streamManager() { return *m_streamManager; }
+    MultiCorder& multiCorder() { return *m_multiCorder; }
+    RecordOutput* recordOutput() const { return m_recordOutput.get(); }
+    VirtualCamOutput* virtualCam() const { return m_virtualCamOutput.get(); }
+    const ContextConfig& config() const { return m_config; }
+    void setMasterResolution(int width, int height);
+
     // ─── Unified Switching API ───────────────────────────────────
     void cut();
     void quickPlay(uint64_t sourceId);
@@ -70,14 +82,22 @@ public:
     void toggleFTB(int durationMs = 500);
     bool isFTBActive() const;
 
-    // ─── Live Broadcasting & Recording State ─────────────────────
-    void startStreaming() { m_streaming.store(true); }
-    void stopStreaming() { m_streaming.store(false); }
-    bool isStreaming() const { return m_streaming.load(); }
+    // ─── Live Broadcasting, Recording & External Outputs ─────────
+    bool startRecording(const std::string& path = "", int bitrateKbps = 15000);
+    void stopRecording();
+    bool isRecording() const;
 
-    void startRecording() { m_recording.store(true); }
-    void stopRecording() { m_recording.store(false); }
-    bool isRecording() const { return m_recording.load(); }
+    bool startExternal();
+    void stopExternal();
+    bool isExternalActive() const;
+
+    bool startStreaming();
+    void stopStreaming();
+    bool isStreaming() const;
+
+    bool startMultiCorder(const std::string& dir = "");
+    void stopMultiCorder();
+    bool isMultiCorderActive() const;
 
     // ─── vMix 29 HTTP / REST API Execution ───────────────────────
     std::string executeVmixFunction(const std::string& function,
@@ -95,10 +115,15 @@ private:
 
     std::unique_ptr<Compositor> m_compositor;
     std::unique_ptr<AudioMixer> m_audioMixer;
+    std::unique_ptr<RecordOutput> m_recordOutput;
+    std::unique_ptr<VirtualCamOutput> m_virtualCamOutput;
+    std::unique_ptr<MultiCorder> m_multiCorder;
+    std::unique_ptr<MultiStreamManager> m_streamManager;
 
     std::unordered_map<uint64_t, std::shared_ptr<Source>> m_sources;
     std::atomic<bool> m_streaming { false };
     std::atomic<bool> m_recording { false };
+    std::atomic<bool> m_externalActive { false };
 };
 
 } // namespace sm

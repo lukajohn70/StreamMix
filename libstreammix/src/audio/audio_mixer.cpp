@@ -267,6 +267,15 @@ AudioMeterData AudioMixer::getMasterMeters() const {
     return m_masterMeters;
 }
 
+AudioMeterData AudioMixer::getBusMeters(AudioBus bus) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto it = m_busMeters.find(static_cast<uint32_t>(bus));
+    if (it != m_busMeters.end()) {
+        return it->second;
+    }
+    return AudioMeterData{};
+}
+
 // ─── Soft-Knee Limiter / Anti-Clipping ────────────────────────────
 void AudioMixer::applySoftLimiter(std::vector<float>& samples) {
     for (float& s : samples) {
@@ -424,13 +433,16 @@ AudioFramePtr AudioMixer::renderBus(AudioBus bus, int frameCount, int64_t pts_us
     // Anti-clipping limiter
     applySoftLimiter(outFrame->samples);
 
-    // Update Master meters
-    if (bus == Bus_Master) {
-        m_masterMeters.peakL = maxPeakL;
-        m_masterMeters.peakR = maxPeakR;
-        m_masterMeters.peakDbL = linearToDb(maxPeakL);
-        m_masterMeters.peakDbR = linearToDb(maxPeakR);
+    // Update Bus & Master meters
+    AudioMeterData busMeters;
+    busMeters.peakL = maxPeakL;
+    busMeters.peakR = maxPeakR;
+    busMeters.peakDbL = linearToDb(maxPeakL);
+    busMeters.peakDbR = linearToDb(maxPeakR);
+    m_busMeters[static_cast<uint32_t>(bus)] = busMeters;
 
+    if (bus == Bus_Master) {
+        m_masterMeters = busMeters;
         if (m_masterCb) {
             m_masterCb(outFrame);
         }

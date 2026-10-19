@@ -373,14 +373,23 @@ void WebServer::handleHttpRequest(int clientSocket, const std::string& request) 
 
 std::string WebServer::readFileContent(const std::string& relativePath) {
     std::string clean = (relativePath.front() == '/') ? relativePath.substr(1) : relativePath;
-    std::string fullPath = m_config.webRoot + "/" + clean;
+    std::vector<std::string> candidatePaths = {
+        m_config.webRoot + "/" + clean,
+        clean,
+        "Resources/" + clean,
+        "../Resources/" + clean,
+        "/Applications/MAMP/htdocs/StreamMix/" + clean
+    };
 
-    std::ifstream file(fullPath, std::ios::binary);
-    if (!file.is_open()) return "";
-
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    return ss.str();
+    for (const auto& fullPath : candidatePaths) {
+        std::ifstream file(fullPath, std::ios::binary);
+        if (file.is_open()) {
+            std::ostringstream ss;
+            ss << file.rdbuf();
+            return ss.str();
+        }
+    }
+    return "";
 }
 
 std::string WebServer::getMimeType(const std::string& path) {
